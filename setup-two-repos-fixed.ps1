@@ -22,7 +22,7 @@ Write-Host "[1/6] Checking prerequisites..."
 # Check if Git is installed
 try {
     git --version | Out-Null
-    Write-Host "✓ Git is installed" -ForegroundColor Green
+    Write-Host "[OK] Git is installed" -ForegroundColor Green
 } catch {
     Write-Error "Git is not installed. Please install Git first."
     exit 1
@@ -31,9 +31,10 @@ try {
 # Step 2: Backup current state
 Write-Host ""
 Write-Host "[2/6] Creating backup..."
-$backupDir = "..\vscode-sockpuppet-backup-$(Get-Date -Format 'yyyyMMdd-HHmmss')"
+$timestamp = Get-Date -Format 'yyyyMMdd-HHmmss'
+$backupDir = "..\vscode-sockpuppet-backup-$timestamp"
 Copy-Item -Recurse -Path "." -Destination $backupDir -Exclude @("node_modules", ".git", "dist")
-Write-Host "✓ Backup created at: $backupDir" -ForegroundColor Green
+Write-Host "[OK] Backup created at: $backupDir" -ForegroundColor Green
 
 # Step 3: Prepare Python package for separate repo
 Write-Host ""
@@ -62,7 +63,7 @@ foreach ($file in $pythonFiles) {
 
 if ($missing.Count -gt 0) {
     Write-Warning "Missing files in Python package:"
-    $missing | ForEach-Object { Write-Host "  - $_" -ForegroundColor Yellow }
+    $missing | ForEach-Object { Write-Host "  $_" -ForegroundColor Yellow }
     Write-Host ""
     $continue = Read-Host "Continue anyway? (y/N)"
     if ($continue -ne "y") {
@@ -70,7 +71,7 @@ if ($missing.Count -gt 0) {
     }
 }
 
-Write-Host "✓ Python package structure verified" -ForegroundColor Green
+Write-Host "[OK] Python package structure verified" -ForegroundColor Green
 
 # Step 4: Show what will happen
 Write-Host ""
@@ -95,7 +96,7 @@ if ($confirm -ne "y") {
 Write-Host ""
 Write-Host "[5/6] Creating setup instructions..."
 
-$instructions = @"
+$instructionsContent = @"
 # VSCode Sockpuppet - Repository Setup Instructions
 
 ## Current State
@@ -106,37 +107,44 @@ Your project is ready to be split into two repositories. A backup has been creat
 
 ### Step 1: Create and Push Python Repository
 
-\`\`\`bash
+Create the repository on GitHub first:
+- Go to https://github.com/new
+- Name: vscode-sockpuppet-python
+- Create repository (do not initialize with README)
+
+Then push the code:
+
+``````powershell
 # Create a temporary directory for the Python repo
 cd ..
-mkdir vscode-sockpuppet-python-temp
+New-Item -ItemType Directory -Path vscode-sockpuppet-python-temp
 cd vscode-sockpuppet-python-temp
 
 # Copy Python package files
-cp -r ../vscode-sockpuppet/python/* .
+Copy-Item -Recurse ..\vscode-sockpuppet\python\* .
 
 # Rename standalone README
-mv README_STANDALONE.md README.md
+Move-Item README_STANDALONE.md README.md
 
 # Initialize Git
 git init
 git add .
 git commit -m "Initial commit: Python package"
 
-# Create repository on GitHub, then push
+# Add remote and push
 git remote add origin $PythonRepoUrl
 git branch -M main
 git push -u origin main
-\`\`\`
+``````
 
 ### Step 2: Convert Python Folder to Submodule
 
-\`\`\`bash
+``````powershell
 # Go back to extension directory
-cd ../vscode-sockpuppet
+cd ..\vscode-sockpuppet
 
 # Remove python folder (it's backed up!)
-rm -rf python
+Remove-Item -Recurse -Force python
 
 # Add as submodule
 git submodule add $PythonRepoUrl python
@@ -144,32 +152,34 @@ git submodule add $PythonRepoUrl python
 # Commit
 git add .gitmodules python
 git commit -m "Convert Python package to submodule"
-\`\`\`
+``````
 
-### Step 3: Initialize Extension Repository
+### Step 3: Push Extension Repository
 
-\`\`\`bash
-# Still in vscode-sockpuppet directory
-git init
-git add .
-git commit -m "Initial commit: VS Code extension"
+Create the extension repository on GitHub:
+- Go to https://github.com/new
+- Name: vscode-sockpuppet-extension
+- Create repository (do not initialize with README)
 
-# Create repository on GitHub, then push
+Then push:
+
+``````powershell
+# Add remote and push
 git remote add origin $ExtensionRepoUrl
 git branch -M main
 git push -u origin main
-\`\`\`
+``````
 
 ### Step 4: Verify Setup
 
-\`\`\`bash
+``````powershell
 # Clone extension with submodule
 cd ..
 git clone --recursive $ExtensionRepoUrl vscode-sockpuppet-test
 cd vscode-sockpuppet-test
 
 # Verify structure
-ls -la python/  # Should show Python package files
+Get-ChildItem python\
 
 # Test extension
 npm install
@@ -179,7 +189,7 @@ npm run compile
 cd python
 pip install -e .
 python example.py
-\`\`\`
+``````
 
 ## Backup Location
 
@@ -188,16 +198,16 @@ $backupDir
 
 ## Repository URLs
 
-Python: $PythonRepoUrl
-Extension: $ExtensionRepoUrl
+- Python: $PythonRepoUrl
+- Extension: $ExtensionRepoUrl
 
 ## Documentation
 
 See docs/TWO_REPO_SETUP.md for complete guide.
 "@
 
-$instructions | Out-File -FilePath "SETUP_INSTRUCTIONS.txt" -Encoding UTF8
-Write-Host "✓ Instructions written to SETUP_INSTRUCTIONS.txt" -ForegroundColor Green
+$instructionsContent | Set-Content -Path "SETUP_INSTRUCTIONS.txt" -Encoding UTF8
+Write-Host "[OK] Instructions written to SETUP_INSTRUCTIONS.txt" -ForegroundColor Green
 
 # Step 6: Summary
 Write-Host ""
