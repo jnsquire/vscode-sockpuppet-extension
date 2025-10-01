@@ -68,9 +68,30 @@ Then press F5 to launch the extension in debug mode, or package it for installat
 
 ### 2. Install the Python Package
 
+**Using uv (Recommended):**
+
+```bash
+# Install uv if you haven't already
+curl -LsSf https://astral.sh/uv/install.sh | sh  # Unix/macOS
+# or
+powershell -c "irm https://astral.sh/uv/install.ps1 | iex"  # Windows
+
+# Install the package
+cd python
+uv pip install -e .
+
+# On Windows, also install:
+uv pip install -e ".[windows]"
+```
+
+**Using pip:**
+
 ```bash
 cd python
 pip install -e .
+
+# On Windows, also install:
+pip install -e ".[windows]"
 ```
 
 ## Usage
