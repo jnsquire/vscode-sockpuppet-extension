@@ -23,7 +23,7 @@
 - `validate_range(range)` - Validate a range
 - `validate_position(position)` - Validate a position
 
-See [DOCUMENT_API.md](docs/DOCUMENT_API.md) for complete documentation.or common VS Code operations
+See [TextDocument API](docs/api/documents.md) for complete documentation.or common VS Code operations
 - **Real-time Communication** - Named pipe/Unix socket for low latency
 - **Event Subscriptions** - React to VS Code events (file saves, edits, selections, etc.)
 - **Type-Safe** - Written in TypeScript with Python type hints
@@ -223,7 +223,7 @@ See `python/example.py` for more examples.
 - `unsubscribe(event, handler)` - Unsubscribe from events
 - `get_subscriptions()` - List active subscriptions
 
-See [EVENTS.md](docs/EVENTS.md) for complete event documentation.
+See [Event Subscriptions](docs/api/events.md) for complete event documentation.
 
 ## Architecture
 
@@ -259,13 +259,23 @@ See [EVENTS.md](docs/EVENTS.md) for complete event documentation.
 
 📚 **[Complete Documentation](docs/)** - All guides organized in the `docs/` folder
 
-- [Quick Start Guide](docs/QUICKSTART.md) - Get started in 5 minutes
-- [TextDocument API](docs/DOCUMENT_API.md) - Complete object model for working with documents
-- [Event Subscriptions](docs/EVENTS.md) - Real-time event handling
-- [Extension Integration API](docs/EXTENSION_API.md) - For VS Code extension developers
-- [Development Guide](docs/DEVELOPMENT.md) - Contributing and extending the project
+### Getting Started
+- [Quick Start Guide](docs/getting-started/quickstart.md) - Get started in 5 minutes
+- [Migration Guide](docs/getting-started/migration.md) - Upgrading from WebSocket
+
+### API Reference
+- [TextDocument API](docs/api/documents.md) - Complete object model for working with documents
+- [Event Subscriptions](docs/api/events.md) - Real-time event handling
+- [Webview API](docs/api/webviews.md) - Create custom HTML UI panels
+
+### Developer Guides
+- [Extension Integration](docs/guides/extension-integration.md) - For VS Code extension developers
+- [Development Guide](docs/guides/development.md) - Contributing and extending the project
+- [Repository Setup](docs/guides/repository-setup.md) - Two-repository structure
+
+### Additional Resources
 - [Python Package README](python/README.md) - Python API reference
-- [Example Scripts](python/) - Working examples (basic + events + documents)
+- [Example Scripts](python/examples/) - Working examples
 
 ## Extension Integration
 

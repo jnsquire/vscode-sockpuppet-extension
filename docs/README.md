@@ -4,50 +4,59 @@ Welcome to the VSCode Sockpuppet documentation!
 
 ## Getting Started
 
-- **[Quick Start Guide](QUICKSTART.md)** - Get up and running in 5 minutes
+- **[Quick Start Guide](getting-started/quickstart.md)** - Get up and running in 5 minutes
   - Installation
   - First script
   - Common operations
 
+- **[Migration Guide](getting-started/migration.md)** - Historical reference for upgrading from WebSocket to Named Pipes
+
 ## API Documentation
 
-- **[TextDocument API](DOCUMENT_API.md)** - Complete object model for working with documents
+- **[TextDocument API](api/documents.md)** - Complete object model for working with documents
   - Position, Range, TextLine, TextDocument classes
   - Properties and methods
   - Examples and best practices
 
-- **[Event Subscriptions](EVENTS.md)** - Real-time event handling
+- **[Event Subscriptions](api/events.md)** - Real-time event handling
   - Available events
   - Subscription API
   - Event data structures
   - Threading considerations
 
-## Integration & Development
+- **[Webview API](api/webviews.md)** - Create custom HTML UI panels
+  - Creating webviews
+  - Two-way communication
+  - VS Code theming
+  - Security considerations
 
-- **[Extension Integration API](EXTENSION_API.md)** - For VS Code extension developers
-  - How to integrate with other extensions
-  - TypeScript API reference
-  - Launch Python scripts from extensions
+## Guides for Developers
 
-- **[Development Guide](DEVELOPMENT.md)** - Contributing and extending
+- **[Development Guide](guides/development.md)** - Contributing and extending
   - Project structure
   - Adding new API methods
   - Testing
   - Contributing guidelines
 
+- **[Extension Integration](guides/extension-integration.md)** - For VS Code extension developers
+  - How to integrate with other extensions
+  - TypeScript API reference
+  - Launch Python scripts from extensions
+  - Environment variables
+
+- **[Repository Setup](guides/repository-setup.md)** - Two-repository structure
+  - Git submodules
+  - CI/CD configuration
+  - Development workflow
+  - Publishing
+
 ## Implementation Details
 
-- **[API Implementation](API_IMPLEMENTATION.md)** - Server-side API implementation notes
-  - Request/response protocol
-  - VS Code API mappings
+- **[Implementation Notes](implementation/notes.md)** - Technical implementation details
+  - Architecture overview
+  - IPC protocol
+  - API implementations
   - Future enhancements
-
-- **[Document Implementation](DOCUMENT_IMPLEMENTATION.md)** - TextDocument API implementation
-  - Object model design
-  - Serialization details
-  - Complete feature list
-
-- **[Migration Guide](MIGRATION.md)** - Upgrading and compatibility
   - Breaking changes
   - Migration paths
   - Version compatibility
