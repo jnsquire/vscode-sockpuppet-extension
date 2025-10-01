@@ -16,6 +16,9 @@ export class VSCodeServer {
     private clientSubscriptions: Map<net.Socket, Set<string>> = new Map();
     private eventDisposables: vscode.Disposable[] = [];
     private webviewPanels: Map<string, vscode.WebviewPanel> = new Map();
+    private diagnosticCollections: Map<string, vscode.DiagnosticCollection> = new Map();
+    private statusBarItems: Map<string, vscode.StatusBarItem> = new Map();
+    private progressTokens: Map<string, vscode.CancellationTokenSource> = new Map();
 
     constructor(private context: vscode.ExtensionContext) {
         // Create platform-specific pipe path
@@ -156,6 +159,10 @@ export class VSCodeServer {
                 result = await this.handleEnvironmentRequest(method.substring(4), params);
             } else if (method.startsWith('events.')) {
                 result = this.handleEventsRequest(method.substring(7), params, request.socket);
+            } else if (method.startsWith('fs.')) {
+                result = await this.handleFileSystemRequest(method.substring(3), params);
+            } else if (method.startsWith('languages.')) {
+                result = await this.handleLanguagesRequest(method.substring(10), params);
             } else {
                 throw new Error(`Unknown method: ${method}`);
             }
@@ -235,6 +242,18 @@ export class VSCodeServer {
 
             case 'postMessageToWebview':
                 return this.postMessageToWebview(params);
+
+            case 'createStatusBarItem':
+                return this.createStatusBarItem(params);
+
+            case 'updateStatusBarItem':
+                return this.updateStatusBarItem(params);
+
+            case 'disposeStatusBarItem':
+                return this.disposeStatusBarItem(params);
+
+            case 'withProgress':
+                return await this.withProgress(params);
 
             default:
                 throw new Error(`Unknown window method: window.${method}`);
@@ -317,6 +336,24 @@ export class VSCodeServer {
                     throw new Error(`Document not found: ${params.uri}`);
                 }
                 return this.serializeTextDocument(foundDoc);
+
+            case 'getConfiguration':
+                return this.getConfiguration(params.section, params.scope);
+
+            case 'hasConfiguration':
+                return this.hasConfiguration(params.section, params.scope);
+
+            case 'inspectConfiguration':
+                return this.inspectConfiguration(params.section, params.scope);
+
+            case 'updateConfiguration':
+                return await this.updateConfiguration(
+                    params.section,
+                    params.value,
+                    params.configurationTarget,
+                    params.scope,
+                    params.overrideInLanguage
+                );
 
             default:
                 throw new Error(`Unknown workspace method: workspace.${method}`);
@@ -612,6 +649,365 @@ export class VSCodeServer {
                 end: { line: line.rangeIncludingLineBreak.end.line, character: line.rangeIncludingLineBreak.end.character }
             }
         };
+    }
+
+    // File System API Handlers
+    private async handleFileSystemRequest(method: string, params: any): Promise<any> {
+        switch (method) {
+            case 'readFile':
+                const readData = await vscode.workspace.fs.readFile(vscode.Uri.parse(params.uri));
+                return Array.from(readData); // Convert Uint8Array to regular array for JSON
+
+            case 'writeFile':
+                const writeData = new Uint8Array(params.content);
+                await vscode.workspace.fs.writeFile(vscode.Uri.parse(params.uri), writeData);
+                return { success: true };
+
+            case 'delete':
+                await vscode.workspace.fs.delete(vscode.Uri.parse(params.uri), params.options);
+                return { success: true };
+
+            case 'rename':
+                await vscode.workspace.fs.rename(
+                    vscode.Uri.parse(params.source),
+                    vscode.Uri.parse(params.target),
+                    params.options
+                );
+                return { success: true };
+
+            case 'copy':
+                await vscode.workspace.fs.copy(
+                    vscode.Uri.parse(params.source),
+                    vscode.Uri.parse(params.target),
+                    params.options
+                );
+                return { success: true };
+
+            case 'createDirectory':
+                await vscode.workspace.fs.createDirectory(vscode.Uri.parse(params.uri));
+                return { success: true };
+
+            case 'readDirectory':
+                const entries = await vscode.workspace.fs.readDirectory(vscode.Uri.parse(params.uri));
+                return entries.map(([name, type]) => ({ name, type }));
+
+            case 'stat':
+                const stat = await vscode.workspace.fs.stat(vscode.Uri.parse(params.uri));
+                return {
+                    type: stat.type,
+                    ctime: stat.ctime,
+                    mtime: stat.mtime,
+                    size: stat.size
+                };
+
+            default:
+                throw new Error(`Unknown fs method: fs.${method}`);
+        }
+    }
+
+    // Languages API Handlers (Diagnostics)
+    private async handleLanguagesRequest(method: string, params: any): Promise<any> {
+        switch (method) {
+            case 'createDiagnosticCollection':
+                const name = params.name || 'default';
+                if (!this.diagnosticCollections.has(name)) {
+                    this.diagnosticCollections.set(name, vscode.languages.createDiagnosticCollection(name));
+                }
+                return { success: true, name };
+
+            case 'setDiagnostics':
+                const collection = this.diagnosticCollections.get(params.name || 'default');
+                if (!collection) {
+                    throw new Error(`Diagnostic collection not found: ${params.name}`);
+                }
+
+                const uri = vscode.Uri.parse(params.uri);
+                const diagnostics = params.diagnostics.map((d: any) => {
+                    const range = new vscode.Range(
+                        d.range.start.line,
+                        d.range.start.character,
+                        d.range.end.line,
+                        d.range.end.character
+                    );
+                    const severity = this.parseDiagnosticSeverity(d.severity);
+                    const diagnostic = new vscode.Diagnostic(range, d.message, severity);
+                    
+                    if (d.source) {
+                        diagnostic.source = d.source;
+                    }
+                    if (d.code) {
+                        diagnostic.code = d.code;
+                    }
+                    if (d.relatedInformation) {
+                        diagnostic.relatedInformation = d.relatedInformation.map((info: any) => {
+                            return new vscode.DiagnosticRelatedInformation(
+                                new vscode.Location(
+                                    vscode.Uri.parse(info.location.uri),
+                                    new vscode.Range(
+                                        info.location.range.start.line,
+                                        info.location.range.start.character,
+                                        info.location.range.end.line,
+                                        info.location.range.end.character
+                                    )
+                                ),
+                                info.message
+                            );
+                        });
+                    }
+                    return diagnostic;
+                });
+
+                collection.set(uri, diagnostics);
+                return { success: true };
+
+            case 'clearDiagnostics':
+                const clearCollection = this.diagnosticCollections.get(params.name || 'default');
+                if (!clearCollection) {
+                    throw new Error(`Diagnostic collection not found: ${params.name}`);
+                }
+                if (params.uri) {
+                    clearCollection.delete(vscode.Uri.parse(params.uri));
+                } else {
+                    clearCollection.clear();
+                }
+                return { success: true };
+
+            case 'disposeDiagnosticCollection':
+                const disposeCollection = this.diagnosticCollections.get(params.name || 'default');
+                if (disposeCollection) {
+                    disposeCollection.dispose();
+                    this.diagnosticCollections.delete(params.name || 'default');
+                }
+                return { success: true };
+
+            default:
+                throw new Error(`Unknown languages method: languages.${method}`);
+        }
+    }
+
+    private parseDiagnosticSeverity(severity: string | number): vscode.DiagnosticSeverity {
+        if (typeof severity === 'number') {
+            return severity;
+        }
+        switch (severity?.toLowerCase()) {
+            case 'error':
+                return vscode.DiagnosticSeverity.Error;
+            case 'warning':
+                return vscode.DiagnosticSeverity.Warning;
+            case 'information':
+            case 'info':
+                return vscode.DiagnosticSeverity.Information;
+            case 'hint':
+                return vscode.DiagnosticSeverity.Hint;
+            default:
+                return vscode.DiagnosticSeverity.Error;
+        }
+    }
+
+    // Configuration API Handlers
+    private getConfiguration(section: string | undefined, scope: string | undefined): any {
+        const scopeUri = scope ? vscode.Uri.parse(scope) : undefined;
+        const config = vscode.workspace.getConfiguration(section, scopeUri);
+        
+        // Get the value for the section
+        // If section is empty, we return the whole configuration
+        // If section has a key, we get that specific value
+        const value = config.get('');
+        return value;
+    }
+
+    private hasConfiguration(section: string, scope: string | undefined): boolean {
+        const scopeUri = scope ? vscode.Uri.parse(scope) : undefined;
+        const config = vscode.workspace.getConfiguration(undefined, scopeUri);
+        return config.has(section);
+    }
+
+    private inspectConfiguration(section: string, scope: string | undefined): any {
+        const scopeUri = scope ? vscode.Uri.parse(scope) : undefined;
+        const config = vscode.workspace.getConfiguration(undefined, scopeUri);
+        const inspection = config.inspect(section);
+        
+        if (!inspection) {
+            return null;
+        }
+
+        return {
+            key: inspection.key,
+            defaultValue: inspection.defaultValue,
+            globalValue: inspection.globalValue,
+            workspaceValue: inspection.workspaceValue,
+            workspaceFolderValue: inspection.workspaceFolderValue,
+            defaultLanguageValue: inspection.defaultLanguageValue,
+            globalLanguageValue: inspection.globalLanguageValue,
+            workspaceLanguageValue: inspection.workspaceLanguageValue,
+            workspaceFolderLanguageValue: inspection.workspaceFolderLanguageValue,
+            languageIds: inspection.languageIds
+        };
+    }
+
+    private async updateConfiguration(
+        section: string,
+        value: any,
+        configurationTarget: number | null | undefined,
+        scope: string | undefined,
+        overrideInLanguage: boolean
+    ): Promise<any> {
+        const scopeUri = scope ? vscode.Uri.parse(scope) : undefined;
+        const config = vscode.workspace.getConfiguration(undefined, scopeUri);
+        
+        // Convert configuration target number to ConfigurationTarget enum
+        let target: vscode.ConfigurationTarget | boolean | null | undefined;
+        if (configurationTarget === 1) {
+            target = vscode.ConfigurationTarget.Global;
+        } else if (configurationTarget === 2) {
+            target = vscode.ConfigurationTarget.Workspace;
+        } else if (configurationTarget === 3) {
+            target = vscode.ConfigurationTarget.WorkspaceFolder;
+        } else {
+            target = configurationTarget;
+        }
+
+        await config.update(section, value, target, overrideInLanguage);
+        return { success: true };
+    }
+
+    // Status Bar Item Handlers
+    private createStatusBarItem(params: any): any {
+        const { id, alignment, priority } = params;
+        
+        if (this.statusBarItems.has(id)) {
+            throw new Error(`Status bar item already exists: ${id}`);
+        }
+
+        const alignmentValue = alignment === 'right' 
+            ? vscode.StatusBarAlignment.Right 
+            : vscode.StatusBarAlignment.Left;
+        
+        const item = vscode.window.createStatusBarItem(alignmentValue, priority);
+        this.statusBarItems.set(id, item);
+
+        return { success: true, id };
+    }
+
+    private updateStatusBarItem(params: any): any {
+        const { id, text, tooltip, command, color, backgroundColor, show } = params;
+        
+        const item = this.statusBarItems.get(id);
+        if (!item) {
+            throw new Error(`Status bar item not found: ${id}`);
+        }
+
+        if (text !== undefined) {
+            item.text = text;
+        }
+        if (tooltip !== undefined) {
+            item.tooltip = tooltip;
+        }
+        if (command !== undefined) {
+            item.command = command;
+        }
+        if (color !== undefined) {
+            item.color = color;
+        }
+        if (backgroundColor !== undefined) {
+            item.backgroundColor = new vscode.ThemeColor(backgroundColor);
+        }
+        if (show !== undefined) {
+            if (show) {
+                item.show();
+            } else {
+                item.hide();
+            }
+        }
+
+        return { success: true };
+    }
+
+    private disposeStatusBarItem(params: any): any {
+        const { id } = params;
+        
+        const item = this.statusBarItems.get(id);
+        if (!item) {
+            throw new Error(`Status bar item not found: ${id}`);
+        }
+
+        item.dispose();
+        this.statusBarItems.delete(id);
+
+        return { success: true };
+    }
+
+    // Progress Indicator Handler
+    private async withProgress(params: any): Promise<any> {
+        const { location, title, cancellable, task } = params;
+        
+        const locationValue = this.parseProgressLocation(location);
+        
+        return await vscode.window.withProgress(
+            {
+                location: locationValue,
+                title: title,
+                cancellable: cancellable || false
+            },
+            async (progress, token) => {
+                // Report initial progress
+                if (params.message) {
+                    progress.report({ message: params.message });
+                }
+
+                // If this is a long-running operation that will be controlled from Python,
+                // we need to wait for updates
+                if (task === 'wait') {
+                    const progressId = params.progressId || Math.random().toString(36);
+                    
+                    // Store the cancellation token
+                    const tokenSource = new vscode.CancellationTokenSource();
+                    this.progressTokens.set(progressId, tokenSource);
+                    
+                    // Set up a promise that will be resolved when the progress is complete
+                    return new Promise((resolve, reject) => {
+                        // Listen for progress updates
+                        const checkInterval = setInterval(() => {
+                            if (token.isCancellationRequested || tokenSource.token.isCancellationRequested) {
+                                clearInterval(checkInterval);
+                                this.progressTokens.delete(progressId);
+                                reject(new Error('Progress cancelled'));
+                            }
+                        }, 100);
+
+                        // Store the resolve/reject functions for external control
+                        (this.progressTokens.get(progressId) as any).resolve = (result: any) => {
+                            clearInterval(checkInterval);
+                            this.progressTokens.delete(progressId);
+                            resolve(result);
+                        };
+                        (this.progressTokens.get(progressId) as any).reject = (error: any) => {
+                            clearInterval(checkInterval);
+                            this.progressTokens.delete(progressId);
+                            reject(error);
+                        };
+                        (this.progressTokens.get(progressId) as any).report = (update: any) => {
+                            progress.report(update);
+                        };
+                    });
+                }
+
+                return { success: true };
+            }
+        );
+    }
+
+    private parseProgressLocation(location: string): vscode.ProgressLocation {
+        switch (location?.toLowerCase()) {
+            case 'notification':
+                return vscode.ProgressLocation.Notification;
+            case 'window':
+                return vscode.ProgressLocation.Window;
+            case 'sourcecontrol':
+                return vscode.ProgressLocation.SourceControl;
+            default:
+                return vscode.ProgressLocation.Notification;
+        }
     }
 
     private setupEventListeners(): void {
