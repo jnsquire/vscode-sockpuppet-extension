@@ -142,289 +142,21 @@ export class VSCodeServer {
         try {
             let result;
 
-            switch (method) {
-                // Window operations
-                case 'window.showInformationMessage':
-                    result = await vscode.window.showInformationMessage(params.message, ...(params.items || []));
-                    break;
-
-                case 'window.showWarningMessage':
-                    result = await vscode.window.showWarningMessage(params.message, ...(params.items || []));
-                    break;
-
-                case 'window.showErrorMessage':
-                    result = await vscode.window.showErrorMessage(params.message, ...(params.items || []));
-                    break;
-
-                case 'window.showQuickPick':
-                    result = await vscode.window.showQuickPick(params.items, params.options);
-                    break;
-
-                case 'window.showInputBox':
-                    result = await vscode.window.showInputBox(params.options);
-                    break;
-
-                case 'window.showTextDocument':
-                    const doc = await vscode.workspace.openTextDocument(params.uri);
-                    result = await vscode.window.showTextDocument(doc, params.options);
-                    result = { success: true };
-                    break;
-
-                case 'window.createOutputChannel':
-                    const channel = vscode.window.createOutputChannel(params.name);
-                    if (params.show) {
-                        channel.show(params.preserveFocus);
-                    }
-                    if (params.text) {
-                        channel.appendLine(params.text);
-                    }
-                    result = { success: true };
-                    break;
-
-                case 'window.createTerminal':
-                    const terminal = vscode.window.createTerminal(params.name, params.shellPath, params.shellArgs);
-                    if (params.show) {
-                        terminal.show(params.preserveFocus);
-                    }
-                    if (params.text) {
-                        terminal.sendText(params.text, params.addNewLine !== false);
-                    }
-                    result = { success: true };
-                    break;
-
-                case 'window.setStatusBarMessage':
-                    vscode.window.setStatusBarMessage(params.text, params.hideAfterTimeout);
-                    result = { success: true };
-                    break;
-
-                // Editor operations
-                case 'window.activeTextEditor.edit':
-                    if (vscode.window.activeTextEditor) {
-                        await vscode.window.activeTextEditor.edit(editBuilder => {
-                            for (const edit of params.edits) {
-                                const range = new vscode.Range(
-                                    edit.range.start.line,
-                                    edit.range.start.character,
-                                    edit.range.end.line,
-                                    edit.range.end.character
-                                );
-                                if (edit.type === 'insert') {
-                                    editBuilder.insert(range.start, edit.text);
-                                } else if (edit.type === 'delete') {
-                                    editBuilder.delete(range);
-                                } else if (edit.type === 'replace') {
-                                    editBuilder.replace(range, edit.text);
-                                }
-                            }
-                        });
-                        result = { success: true };
-                    } else {
-                        throw new Error('No active text editor');
-                    }
-                    break;
-
-                case 'window.activeTextEditor.selection':
-                    if (vscode.window.activeTextEditor) {
-                        const selection = vscode.window.activeTextEditor.selection;
-                        result = {
-                            start: { line: selection.start.line, character: selection.start.character },
-                            end: { line: selection.end.line, character: selection.end.character },
-                            text: vscode.window.activeTextEditor.document.getText(selection)
-                        };
-                    } else {
-                        throw new Error('No active text editor');
-                    }
-                    break;
-
-                case 'window.activeTextEditor.setSelection':
-                    if (vscode.window.activeTextEditor) {
-                        const start = new vscode.Position(params.start.line, params.start.character);
-                        const end = new vscode.Position(params.end.line, params.end.character);
-                        vscode.window.activeTextEditor.selection = new vscode.Selection(start, end);
-                        result = { success: true };
-                    } else {
-                        throw new Error('No active text editor');
-                    }
-                    break;
-
-                // Workspace operations
-                case 'workspace.openTextDocument':
-                    const document = await vscode.workspace.openTextDocument(params.uri || { content: params.content, language: params.language });
-                    result = this.serializeTextDocument(document);
-                    break;
-
-                case 'workspace.saveAll':
-                    result = await vscode.workspace.saveAll(params.includeUntitled);
-                    break;
-
-                case 'workspace.workspaceFolders':
-                    result = vscode.workspace.workspaceFolders?.map(folder => ({
-                        uri: folder.uri.toString(),
-                        name: folder.name,
-                        index: folder.index
-                    })) || [];
-                    break;
-
-                case 'workspace.textDocuments':
-                    result = vscode.workspace.textDocuments.map(doc => this.serializeTextDocument(doc));
-                    break;
-
-                case 'workspace.getTextDocument':
-                    const foundDoc = vscode.workspace.textDocuments.find(d => d.uri.toString() === params.uri);
-                    if (foundDoc) {
-                        result = this.serializeTextDocument(foundDoc);
-                    } else {
-                        throw new Error(`Document not found: ${params.uri}`);
-                    }
-                    break;
-
-                // Document operations
-                case 'document.save':
-                    const docToSave = vscode.workspace.textDocuments.find(d => d.uri.toString() === params.uri);
-                    if (docToSave) {
-                        const saved = await docToSave.save();
-                        result = { success: saved, version: docToSave.version };
-                    } else {
-                        throw new Error(`Document not found: ${params.uri}`);
-                    }
-                    break;
-
-                case 'document.lineAt':
-                    const docForLine = vscode.workspace.textDocuments.find(d => d.uri.toString() === params.uri);
-                    if (docForLine) {
-                        const line = docForLine.lineAt(params.line);
-                        result = this.serializeTextLine(line);
-                    } else {
-                        throw new Error(`Document not found: ${params.uri}`);
-                    }
-                    break;
-
-                case 'document.offsetAt':
-                    const docForOffset = vscode.workspace.textDocuments.find(d => d.uri.toString() === params.uri);
-                    if (docForOffset) {
-                        const position = new vscode.Position(params.position.line, params.position.character);
-                        result = docForOffset.offsetAt(position);
-                    } else {
-                        throw new Error(`Document not found: ${params.uri}`);
-                    }
-                    break;
-
-                case 'document.positionAt':
-                    const docForPosition = vscode.workspace.textDocuments.find(d => d.uri.toString() === params.uri);
-                    if (docForPosition) {
-                        const position = docForPosition.positionAt(params.offset);
-                        result = { line: position.line, character: position.character };
-                    } else {
-                        throw new Error(`Document not found: ${params.uri}`);
-                    }
-                    break;
-
-                case 'document.getText':
-                    const docForText = vscode.workspace.textDocuments.find(d => d.uri.toString() === params.uri);
-                    if (docForText) {
-                        if (params.range) {
-                            const range = new vscode.Range(
-                                params.range.start.line,
-                                params.range.start.character,
-                                params.range.end.line,
-                                params.range.end.character
-                            );
-                            result = docForText.getText(range);
-                        } else {
-                            result = docForText.getText();
-                        }
-                    } else {
-                        throw new Error(`Document not found: ${params.uri}`);
-                    }
-                    break;
-
-                case 'document.getWordRangeAtPosition':
-                    const docForWord = vscode.workspace.textDocuments.find(d => d.uri.toString() === params.uri);
-                    if (docForWord) {
-                        const position = new vscode.Position(params.position.line, params.position.character);
-                        const regex = params.regex ? new RegExp(params.regex) : undefined;
-                        const wordRange = docForWord.getWordRangeAtPosition(position, regex);
-                        if (wordRange) {
-                            result = {
-                                start: { line: wordRange.start.line, character: wordRange.start.character },
-                                end: { line: wordRange.end.line, character: wordRange.end.character }
-                            };
-                        } else {
-                            result = null;
-                        }
-                    } else {
-                        throw new Error(`Document not found: ${params.uri}`);
-                    }
-                    break;
-
-                case 'document.validateRange':
-                    const docForValidateRange = vscode.workspace.textDocuments.find(d => d.uri.toString() === params.uri);
-                    if (docForValidateRange) {
-                        const range = new vscode.Range(
-                            params.range.start.line,
-                            params.range.start.character,
-                            params.range.end.line,
-                            params.range.end.character
-                        );
-                        const validated = docForValidateRange.validateRange(range);
-                        result = {
-                            start: { line: validated.start.line, character: validated.start.character },
-                            end: { line: validated.end.line, character: validated.end.character }
-                        };
-                    } else {
-                        throw new Error(`Document not found: ${params.uri}`);
-                    }
-                    break;
-
-                case 'document.validatePosition':
-                    const docForValidatePos = vscode.workspace.textDocuments.find(d => d.uri.toString() === params.uri);
-                    if (docForValidatePos) {
-                        const position = new vscode.Position(params.position.line, params.position.character);
-                        const validated = docForValidatePos.validatePosition(position);
-                        result = { line: validated.line, character: validated.character };
-                    } else {
-                        throw new Error(`Document not found: ${params.uri}`);
-                    }
-                    break;
-
-                // Commands
-                case 'commands.executeCommand':
-                    result = await vscode.commands.executeCommand(params.command, ...(params.args || []));
-                    break;
-
-                case 'commands.getCommands':
-                    result = await vscode.commands.getCommands(params.filterInternal);
-                    break;
-
-                // Environment
-                case 'env.clipboard.writeText':
-                    await vscode.env.clipboard.writeText(params.text);
-                    result = { success: true };
-                    break;
-
-                case 'env.clipboard.readText':
-                    result = await vscode.env.clipboard.readText();
-                    break;
-
-                case 'env.openExternal':
-                    result = await vscode.env.openExternal(vscode.Uri.parse(params.uri));
-                    break;
-
-                // Event subscriptions
-                case 'events.subscribe':
-                    result = this.subscribeToEvent(request.socket, params.event);
-                    break;
-
-                case 'events.unsubscribe':
-                    result = this.unsubscribeFromEvent(request.socket, params.event);
-                    break;
-
-                case 'events.listSubscriptions':
-                    result = Array.from(this.clientSubscriptions.get(request.socket) || []);
-                    break;
-
-                default:
-                    throw new Error(`Unknown method: ${method}`);
+            // Route to appropriate handler based on method prefix
+            if (method.startsWith('window.')) {
+                result = await this.handleWindowRequest(method, params);
+            } else if (method.startsWith('workspace.')) {
+                result = await this.handleWorkspaceRequest(method, params);
+            } else if (method.startsWith('document.')) {
+                result = await this.handleDocumentRequest(method, params);
+            } else if (method.startsWith('commands.')) {
+                result = await this.handleCommandsRequest(method, params);
+            } else if (method.startsWith('env.')) {
+                result = await this.handleEnvironmentRequest(method, params);
+            } else if (method.startsWith('events.')) {
+                result = this.handleEventsRequest(method, params, request.socket);
+            } else {
+                throw new Error(`Unknown method: ${method}`);
             }
 
             return { id, result };
@@ -433,6 +165,264 @@ export class VSCodeServer {
                 id,
                 error: error instanceof Error ? error.message : String(error)
             };
+        }
+    }
+
+    private async handleWindowRequest(method: string, params: any): Promise<any> {
+        switch (method) {
+            case 'window.showInformationMessage':
+                return await vscode.window.showInformationMessage(params.message, ...(params.items || []));
+
+            case 'window.showWarningMessage':
+                return await vscode.window.showWarningMessage(params.message, ...(params.items || []));
+
+            case 'window.showErrorMessage':
+                return await vscode.window.showErrorMessage(params.message, ...(params.items || []));
+
+            case 'window.showQuickPick':
+                return await vscode.window.showQuickPick(params.items, params.options);
+
+            case 'window.showInputBox':
+                return await vscode.window.showInputBox(params.options);
+
+            case 'window.showTextDocument':
+                const doc = await vscode.workspace.openTextDocument(params.uri);
+                await vscode.window.showTextDocument(doc, params.options);
+                return { success: true };
+
+            case 'window.createOutputChannel':
+                const channel = vscode.window.createOutputChannel(params.name);
+                if (params.show) {
+                    channel.show(params.preserveFocus);
+                }
+                if (params.text) {
+                    channel.appendLine(params.text);
+                }
+                return { success: true };
+
+            case 'window.createTerminal':
+                const terminal = vscode.window.createTerminal(params.name, params.shellPath, params.shellArgs);
+                if (params.show) {
+                    terminal.show(params.preserveFocus);
+                }
+                if (params.text) {
+                    terminal.sendText(params.text, params.addNewLine !== false);
+                }
+                return { success: true };
+
+            case 'window.setStatusBarMessage':
+                vscode.window.setStatusBarMessage(params.text, params.hideAfterTimeout);
+                return { success: true };
+
+            case 'window.activeTextEditor.edit':
+                return await this.handleEditorEdit(params);
+
+            case 'window.activeTextEditor.selection':
+                return this.handleEditorGetSelection();
+
+            case 'window.activeTextEditor.setSelection':
+                return this.handleEditorSetSelection(params);
+
+            default:
+                throw new Error(`Unknown window method: ${method}`);
+        }
+    }
+
+    private async handleEditorEdit(params: any): Promise<any> {
+        if (!vscode.window.activeTextEditor) {
+            throw new Error('No active text editor');
+        }
+
+        await vscode.window.activeTextEditor.edit(editBuilder => {
+            for (const edit of params.edits) {
+                const range = new vscode.Range(
+                    edit.range.start.line,
+                    edit.range.start.character,
+                    edit.range.end.line,
+                    edit.range.end.character
+                );
+                if (edit.type === 'insert') {
+                    editBuilder.insert(range.start, edit.text);
+                } else if (edit.type === 'delete') {
+                    editBuilder.delete(range);
+                } else if (edit.type === 'replace') {
+                    editBuilder.replace(range, edit.text);
+                }
+            }
+        });
+        return { success: true };
+    }
+
+    private handleEditorGetSelection(): any {
+        if (!vscode.window.activeTextEditor) {
+            throw new Error('No active text editor');
+        }
+
+        const selection = vscode.window.activeTextEditor.selection;
+        return {
+            start: { line: selection.start.line, character: selection.start.character },
+            end: { line: selection.end.line, character: selection.end.character },
+            text: vscode.window.activeTextEditor.document.getText(selection)
+        };
+    }
+
+    private handleEditorSetSelection(params: any): any {
+        if (!vscode.window.activeTextEditor) {
+            throw new Error('No active text editor');
+        }
+
+        const start = new vscode.Position(params.start.line, params.start.character);
+        const end = new vscode.Position(params.end.line, params.end.character);
+        vscode.window.activeTextEditor.selection = new vscode.Selection(start, end);
+        return { success: true };
+    }
+
+    private async handleWorkspaceRequest(method: string, params: any): Promise<any> {
+        switch (method) {
+            case 'workspace.openTextDocument':
+                const document = await vscode.workspace.openTextDocument(
+                    params.uri || { content: params.content, language: params.language }
+                );
+                return this.serializeTextDocument(document);
+
+            case 'workspace.saveAll':
+                return await vscode.workspace.saveAll(params.includeUntitled);
+
+            case 'workspace.workspaceFolders':
+                return vscode.workspace.workspaceFolders?.map(folder => ({
+                    uri: folder.uri.toString(),
+                    name: folder.name,
+                    index: folder.index
+                })) || [];
+
+            case 'workspace.textDocuments':
+                return vscode.workspace.textDocuments.map(doc => this.serializeTextDocument(doc));
+
+            case 'workspace.getTextDocument':
+                const foundDoc = vscode.workspace.textDocuments.find(d => d.uri.toString() === params.uri);
+                if (!foundDoc) {
+                    throw new Error(`Document not found: ${params.uri}`);
+                }
+                return this.serializeTextDocument(foundDoc);
+
+            default:
+                throw new Error(`Unknown workspace method: ${method}`);
+        }
+    }
+
+    private async handleDocumentRequest(method: string, params: any): Promise<any> {
+        const doc = vscode.workspace.textDocuments.find(d => d.uri.toString() === params.uri);
+        if (!doc) {
+            throw new Error(`Document not found: ${params.uri}`);
+        }
+
+        switch (method) {
+            case 'document.save':
+                const saved = await doc.save();
+                return { success: saved, version: doc.version };
+
+            case 'document.lineAt':
+                const line = doc.lineAt(params.line);
+                return this.serializeTextLine(line);
+
+            case 'document.offsetAt':
+                const position = new vscode.Position(params.position.line, params.position.character);
+                return doc.offsetAt(position);
+
+            case 'document.positionAt':
+                const pos = doc.positionAt(params.offset);
+                return { line: pos.line, character: pos.character };
+
+            case 'document.getText':
+                if (params.range) {
+                    const range = new vscode.Range(
+                        params.range.start.line,
+                        params.range.start.character,
+                        params.range.end.line,
+                        params.range.end.character
+                    );
+                    return doc.getText(range);
+                }
+                return doc.getText();
+
+            case 'document.getWordRangeAtPosition':
+                const wordPos = new vscode.Position(params.position.line, params.position.character);
+                const regex = params.regex ? new RegExp(params.regex) : undefined;
+                const wordRange = doc.getWordRangeAtPosition(wordPos, regex);
+                if (!wordRange) {
+                    return null;
+                }
+                return {
+                    start: { line: wordRange.start.line, character: wordRange.start.character },
+                    end: { line: wordRange.end.line, character: wordRange.end.character }
+                };
+
+            case 'document.validateRange':
+                const rangeToValidate = new vscode.Range(
+                    params.range.start.line,
+                    params.range.start.character,
+                    params.range.end.line,
+                    params.range.end.character
+                );
+                const validatedRange = doc.validateRange(rangeToValidate);
+                return {
+                    start: { line: validatedRange.start.line, character: validatedRange.start.character },
+                    end: { line: validatedRange.end.line, character: validatedRange.end.character }
+                };
+
+            case 'document.validatePosition':
+                const posToValidate = new vscode.Position(params.position.line, params.position.character);
+                const validatedPos = doc.validatePosition(posToValidate);
+                return { line: validatedPos.line, character: validatedPos.character };
+
+            default:
+                throw new Error(`Unknown document method: ${method}`);
+        }
+    }
+
+    private async handleCommandsRequest(method: string, params: any): Promise<any> {
+        switch (method) {
+            case 'commands.executeCommand':
+                return await vscode.commands.executeCommand(params.command, ...(params.args || []));
+
+            case 'commands.getCommands':
+                return await vscode.commands.getCommands(params.filterInternal);
+
+            default:
+                throw new Error(`Unknown commands method: ${method}`);
+        }
+    }
+
+    private async handleEnvironmentRequest(method: string, params: any): Promise<any> {
+        switch (method) {
+            case 'env.clipboard.writeText':
+                await vscode.env.clipboard.writeText(params.text);
+                return { success: true };
+
+            case 'env.clipboard.readText':
+                return await vscode.env.clipboard.readText();
+
+            case 'env.openExternal':
+                return await vscode.env.openExternal(vscode.Uri.parse(params.uri));
+
+            default:
+                throw new Error(`Unknown environment method: ${method}`);
+        }
+    }
+
+    private handleEventsRequest(method: string, params: any, socket: net.Socket): any {
+        switch (method) {
+            case 'events.subscribe':
+                return this.subscribeToEvent(socket, params.event);
+
+            case 'events.unsubscribe':
+                return this.unsubscribeFromEvent(socket, params.event);
+
+            case 'events.listSubscriptions':
+                return Array.from(this.clientSubscriptions.get(socket) || []);
+
+            default:
+                throw new Error(`Unknown events method: ${method}`);
         }
     }
 
