@@ -641,6 +641,30 @@ export class VSCodeServer {
             case 'openExternal':
                 return await vscode.env.openExternal(vscode.Uri.parse(params.uri));
 
+            case 'appName':
+                return vscode.env.appName;
+
+            case 'appRoot':
+                return vscode.env.appRoot;
+
+            case 'language':
+                return vscode.env.language;
+
+            case 'machineId':
+                return vscode.env.machineId;
+
+            case 'sessionId':
+                return vscode.env.sessionId;
+
+            case 'uriScheme':
+                return vscode.env.uriScheme;
+
+            case 'shell':
+                return vscode.env.shell;
+
+            case 'uiKind':
+                return vscode.env.uiKind;
+
             default:
                 throw new Error(`Unknown environment method: env.${method}`);
         }

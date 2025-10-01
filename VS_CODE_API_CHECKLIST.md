@@ -188,14 +188,14 @@ This document tracks the implementation status of VS Code APIs that can be expos
 ### Environment
 
 #### Environment Properties
-- ❌ `env.appName` - Application name
-- ❌ `env.appRoot` - Application root
-- ❌ `env.language` - UI language
-- ❌ `env.machineId` - Machine identifier
-- ❌ `env.sessionId` - Session identifier
-- ❌ `env.uriScheme` - URI scheme
-- ❌ `env.shell` - Default shell
-- ❌ `env.uiKind` - UI kind (desktop/web)
+- ✅ `env.appName` - Application name (via workspace.env.app_name)
+- ✅ `env.appRoot` - Application root (via workspace.env.app_root)
+- ✅ `env.language` - UI language (via workspace.env.language)
+- ✅ `env.machineId` - Machine identifier (via workspace.env.machine_id)
+- ✅ `env.sessionId` - Session identifier (via workspace.env.session_id)
+- ✅ `env.uriScheme` - URI scheme (via workspace.env.uri_scheme)
+- ✅ `env.shell` - Default shell (via workspace.env.shell)
+- ✅ `env.uiKind` - UI kind (via workspace.env.ui_kind)
 
 #### Environment Methods
 - ✅ `env.openExternal()` - Open external URI
@@ -403,10 +403,10 @@ These require provider registration and typically need package.json contribution
 
 ### Medium Priority
 1. ✅ **Progress Indicators** - Long-running operations (COMPLETED)
-2. **File Decorations** - Visual file metadata
-3. **Tab Group Management** - Tab operations
-4. **Environment Properties** - Context information
-5. **File Watchers** - workspace.createFileSystemWatcher
+2. **File Decorations** - Visual file metadata (requires complex provider pattern)
+3. ✅ **Tab Group Management** - Tab operations (COMPLETED)
+4. ✅ **Environment Properties** - Context information (COMPLETED)
+5. ✅ **File Watchers** - workspace.createFileSystemWatcher (COMPLETED)
 
 ### Low Priority
 1. **Telemetry** - Probably not needed for automation
@@ -444,6 +444,8 @@ These require provider registration and typically need package.json contribution
 - **TextEditor Operations (edit with EditBuilder, insert snippets, reveal ranges, multi-cursor selections, options, viewport queries)**
 - **Terminal Operations (create, sendText, show, hide, dispose - full object-oriented API)**
 - **File System Watchers (workspace.createFileSystemWatcher with glob patterns, event handlers for create/change/delete)**
+- **Environment Properties (workspace.env with app_name, language, machine_id, session_id, uri_scheme, shell, ui_kind, clipboard, open_external)**
+- **Tab Management (window.tab_groups with get_all, get_active, close operations, event subscriptions)**
 
 ### Needs Extension ⚠️
 - Webview operations (more complete postMessage, etc.)
@@ -470,6 +472,7 @@ Based on this analysis, the recommended implementation order is:
 8. ✅ **Configuration Updates** - Modify settings programmatically (COMPLETED)
 9. ✅ **Terminal Operations** - Full terminal lifecycle (COMPLETED - sendText, show, hide, dispose)
 10. ✅ **File Watchers** - workspace.createFileSystemWatcher (COMPLETED - glob patterns, event handlers)
-11. **Complete Event Coverage** - Missing workspace/window events
-12. **Tab Management** - Tab operations
-13. **File Decorations** - Visual file metadata
+11. ✅ **Tab Management** - Tab operations (COMPLETED - get_all, close tab/group, events)
+12. ✅ **Environment Properties** - Context information (COMPLETED - app info, system info, clipboard)
+13. **Complete Event Coverage** - Missing workspace/window events
+14. **File Decorations** - Visual file metadata (requires complex provider pattern)
