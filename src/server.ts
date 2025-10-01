@@ -541,6 +541,15 @@ export class VSCodeServer {
             case 'disposeFileSystemWatcher':
                 return this.disposeFileSystemWatcher(params);
 
+            case 'findFiles':
+                return await this.findFiles(params);
+
+            case 'getWorkspaceFolder':
+                return this.getWorkspaceFolder(params);
+
+            case 'asRelativePath':
+                return this.asRelativePath(params);
+
             default:
                 throw new Error(`Unknown workspace method: workspace.${method}`);
         }
@@ -1341,6 +1350,63 @@ export class VSCodeServer {
         watcher.dispose();
         this.fileWatchers.delete(watcherId);
         return { success: true };
+    }
+
+    // Workspace Search and Path Handlers
+    private async findFiles(params: any): Promise<any> {
+        const { include, exclude, maxResults } = params;
+        
+        try {
+            const files = await vscode.workspace.findFiles(
+                include,
+                exclude === null ? null : (exclude || undefined),
+                maxResults || undefined
+            );
+            
+            return {
+                files: files.map(uri => uri.toString())
+            };
+        } catch (error) {
+            throw new Error(`Failed to find files: ${error instanceof Error ? error.message : String(error)}`);
+        }
+    }
+
+    private getWorkspaceFolder(params: any): any {
+        const { uri } = params;
+        
+        if (!uri) {
+            throw new Error('URI is required for getWorkspaceFolder');
+        }
+
+        const parsedUri = vscode.Uri.parse(uri);
+        const folder = vscode.workspace.getWorkspaceFolder(parsedUri);
+
+        if (!folder) {
+            return { folder: null };
+        }
+
+        return {
+            folder: {
+                uri: folder.uri.toString(),
+                name: folder.name,
+                index: folder.index
+            }
+        };
+    }
+
+    private asRelativePath(params: any): any {
+        const { pathOrUri, includeWorkspaceFolder } = params;
+        
+        if (!pathOrUri) {
+            throw new Error('Path or URI is required for asRelativePath');
+        }
+
+        const relativePath = vscode.workspace.asRelativePath(
+            pathOrUri,
+            includeWorkspaceFolder
+        );
+
+        return { relativePath };
     }
 
     // Tab Groups Handlers

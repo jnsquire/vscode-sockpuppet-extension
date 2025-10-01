@@ -94,10 +94,10 @@ This document tracks the implementation status of VS Code APIs that can be expos
 - ✅ `workspace.name` - Workspace name
 - ❌ `workspace.workspaceFile` - Workspace file URI
 - ❌ `workspace.updateWorkspaceFolders()` - Modify workspace folders
-- ❌ `workspace.getWorkspaceFolder()` - Get folder for URI
-- ❌ `workspace.asRelativePath()` - Convert to relative path
-- ❌ `workspace.findFiles()` - Find files by glob pattern
-- ❌ `workspace.findTextInFiles()` - Search text in files
+- ✅ `workspace.getWorkspaceFolder()` - Get folder for URI
+- ✅ `workspace.asRelativePath()` - Convert to relative path
+- ✅ `workspace.findFiles()` - Find files by glob pattern
+- ❌ `workspace.findTextInFiles()` - Search text in files (N/A - not in VS Code API)
 - ❌ `workspace.save()` - Save single file
 - ✅ `workspace.saveAll()` - Save all files
 
@@ -447,6 +447,7 @@ These require provider registration and typically need package.json contribution
 - **Environment Properties (workspace.env with app_name, language, machine_id, session_id, uri_scheme, shell, ui_kind, clipboard, open_external)**
 - **Tab Management (window.tab_groups with get_all, get_active, close operations, event subscriptions)**
 - **Complete Event Coverage (all onDid* events for window, workspace, editor, terminal, and file operations)**
+- **Workspace Operations (findFiles, getWorkspaceFolder, asRelativePath - file search and path utilities)**
 
 ### Needs Extension ⚠️
 - Webview operations (more complete postMessage, etc.)
@@ -456,7 +457,7 @@ These require provider registration and typically need package.json contribution
 - Advanced webview operations (asWebviewUri, better message handling)
 - Editor decorations (setDecorations, createTextEditorDecorationType)
 - Additional editor operations (show, hide, visible editors)
-- Workspace operations (findFiles, findTextInFiles, applyEdit)
+- Workspace edit operations (applyEdit for batch modifications)
 - File open/save dialogs
 - onWill* events (requires bidirectional async communication - can modify/cancel)
 
@@ -476,5 +477,5 @@ Based on this analysis, the recommended implementation order is:
 10. ✅ **File Watchers** - workspace.createFileSystemWatcher (COMPLETED - glob patterns, event handlers)
 11. ✅ **Tab Management** - Tab operations (COMPLETED - get_all, close tab/group, events)
 12. ✅ **Environment Properties** - Context information (COMPLETED - app info, system info, clipboard)
-13. **Complete Event Coverage** - Missing workspace/window events
-14. **File Decorations** - Visual file metadata (requires complex provider pattern)
+13. ✅ **Complete Event Coverage** - Missing workspace/window events (COMPLETED - all onDid* events)
+14. ✅ **Workspace Operations** - File search and path utilities (COMPLETED - findFiles, getWorkspaceFolder, asRelativePath)
