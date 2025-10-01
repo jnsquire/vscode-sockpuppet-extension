@@ -20,6 +20,7 @@ export class VSCodeServer {
     private statusBarItems: Map<string, vscode.StatusBarItem> = new Map();
     private progressTokens: Map<string, vscode.CancellationTokenSource> = new Map();
     private terminals: Map<string, vscode.Terminal> = new Map();
+    private fileWatchers: Map<string, vscode.FileSystemWatcher> = new Map();
 
     constructor(private context: vscode.ExtensionContext) {
         // Create platform-specific pipe path
@@ -278,6 +279,18 @@ export class VSCodeServer {
             case 'withProgress':
                 return await this.withProgress(params);
 
+            case 'tabGroups.all':
+                return this.getTabGroups();
+
+            case 'tabGroups.activeTabGroup':
+                return this.getActiveTabGroup();
+
+            case 'tabGroups.closeTab':
+                return await this.closeTab(params);
+
+            case 'tabGroups.closeGroup':
+                return await this.closeTabGroup(params);
+
             default:
                 throw new Error(`Unknown window method: window.${method}`);
         }
@@ -521,6 +534,12 @@ export class VSCodeServer {
                     params.scope,
                     params.overrideInLanguage
                 );
+
+            case 'createFileSystemWatcher':
+                return this.createFileSystemWatcher(params);
+
+            case 'disposeFileSystemWatcher':
+                return this.disposeFileSystemWatcher(params);
 
             default:
                 throw new Error(`Unknown workspace method: workspace.${method}`);
@@ -1246,6 +1265,135 @@ export class VSCodeServer {
         return { success: true };
     }
 
+    // File System Watcher Handlers
+    private createFileSystemWatcher(params: any): any {
+        const { globPattern, ignoreCreateEvents, ignoreChangeEvents, ignoreDeleteEvents } = params;
+        const watcherId = `watcher-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+
+        const watcher = vscode.workspace.createFileSystemWatcher(
+            globPattern,
+            ignoreCreateEvents,
+            ignoreChangeEvents,
+            ignoreDeleteEvents
+        );
+
+        // Subscribe to watcher events and broadcast to Python clients
+        if (!ignoreCreateEvents) {
+            watcher.onDidCreate(uri => {
+                this.broadcastEvent(`watcher.${watcherId}.onCreate`, {
+                    uri: uri.toString()
+                });
+            });
+        }
+
+        if (!ignoreChangeEvents) {
+            watcher.onDidChange(uri => {
+                this.broadcastEvent(`watcher.${watcherId}.onChange`, {
+                    uri: uri.toString()
+                });
+            });
+        }
+
+        if (!ignoreDeleteEvents) {
+            watcher.onDidDelete(uri => {
+                this.broadcastEvent(`watcher.${watcherId}.onDelete`, {
+                    uri: uri.toString()
+                });
+            });
+        }
+
+        this.fileWatchers.set(watcherId, watcher);
+        return { watcherId };
+    }
+
+    private disposeFileSystemWatcher(params: any): any {
+        const { watcherId } = params;
+        const watcher = this.fileWatchers.get(watcherId);
+
+        if (!watcher) {
+            throw new Error(`File watcher not found: ${watcherId}`);
+        }
+
+        watcher.dispose();
+        this.fileWatchers.delete(watcherId);
+        return { success: true };
+    }
+
+    // Tab Groups Handlers
+    private getTabGroups(): any {
+        const groups = vscode.window.tabGroups.all.map((group, index) => ({
+            groupId: index,
+            isActive: group.isActive,
+            viewColumn: group.viewColumn,
+            tabs: group.tabs.map(tab => ({
+                label: tab.label,
+                isActive: tab.isActive,
+                isDirty: tab.isDirty,
+                isPinned: tab.isPinned,
+                isPreview: tab.isPreview,
+                groupId: index
+            }))
+        }));
+
+        return { groups };
+    }
+
+    private getActiveTabGroup(): any {
+        const activeGroup = vscode.window.tabGroups.activeTabGroup;
+        if (!activeGroup) {
+            return { group: null };
+        }
+
+        const groupIndex = vscode.window.tabGroups.all.indexOf(activeGroup);
+        return {
+            group: {
+                groupId: groupIndex,
+                isActive: activeGroup.isActive,
+                viewColumn: activeGroup.viewColumn,
+                tabs: activeGroup.tabs.map(tab => ({
+                    label: tab.label,
+                    isActive: tab.isActive,
+                    isDirty: tab.isDirty,
+                    isPinned: tab.isPinned,
+                    isPreview: tab.isPreview,
+                    groupId: groupIndex
+                }))
+            }
+        };
+    }
+
+    private async closeTab(params: any): Promise<any> {
+        const { groupId, tabLabel } = params;
+        const groups = vscode.window.tabGroups.all;
+
+        if (groupId >= groups.length) {
+            throw new Error(`Tab group not found: ${groupId}`);
+        }
+
+        const group = groups[groupId];
+        const tab = group.tabs.find(t => t.label === tabLabel);
+
+        if (!tab) {
+            throw new Error(`Tab not found: ${tabLabel}`);
+        }
+
+        const success = await vscode.window.tabGroups.close(tab, params.preserveFocus);
+        return { success };
+    }
+
+    private async closeTabGroup(params: any): Promise<any> {
+        const { groupId } = params;
+        const groups = vscode.window.tabGroups.all;
+
+        if (groupId >= groups.length) {
+            throw new Error(`Tab group not found: ${groupId}`);
+        }
+
+        const group = groups[groupId];
+        const success = await vscode.window.tabGroups.close(group, params.preserveFocus);
+        return { success };
+    }
+
     private setupEventListeners(): void {
         // Text document events
         this.eventDisposables.push(
@@ -1359,6 +1507,27 @@ export class VSCodeServer {
             vscode.workspace.onDidChangeConfiguration(e => {
                 this.broadcastEvent('workspace.onDidChangeConfiguration', {
                     affectsConfiguration: (section: string) => e.affectsConfiguration(section)
+                });
+            })
+        );
+
+        // Tab groups events
+        this.eventDisposables.push(
+            vscode.window.tabGroups.onDidChangeTabGroups(e => {
+                this.broadcastEvent('window.onDidChangeTabGroups', {
+                    opened: e.opened.length,
+                    closed: e.closed.length,
+                    changed: e.changed.length
+                });
+            })
+        );
+
+        this.eventDisposables.push(
+            vscode.window.tabGroups.onDidChangeTabs(e => {
+                this.broadcastEvent('window.onDidChangeTabs', {
+                    opened: e.opened.length,
+                    closed: e.closed.length,
+                    changed: e.changed.length
                 });
             })
         );
