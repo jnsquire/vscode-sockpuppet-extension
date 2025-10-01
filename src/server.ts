@@ -267,6 +267,9 @@ export class VSCodeServer {
             case 'postMessageToWebview':
                 return this.postMessageToWebview(params);
 
+            case 'asWebviewUri':
+                return this.asWebviewUri(params);
+
             case 'createStatusBarItem':
                 return this.createStatusBarItem(params);
 
@@ -837,6 +840,23 @@ export class VSCodeServer {
         panel.webview.postMessage(message);
 
         return { success: true };
+    }
+
+    private asWebviewUri(params: any): any {
+        const { id, uri } = params;
+        
+        const panel = this.webviewPanels.get(id);
+        if (!panel) {
+            throw new Error(`Webview panel not found: ${id}`);
+        }
+
+        // Parse the local URI and convert it to a webview URI
+        const localUri = vscode.Uri.parse(uri);
+        const webviewUri = panel.webview.asWebviewUri(localUri);
+
+        return { 
+            webviewUri: webviewUri.toString()
+        };
     }
 
     private serializeTextDocument(doc: vscode.TextDocument): any {

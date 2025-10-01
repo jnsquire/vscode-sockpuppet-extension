@@ -70,10 +70,10 @@ This document tracks the implementation status of VS Code APIs that can be expos
 #### Webviews
 - ⚠️ `window.createWebviewPanel()` - Create webview panels (basic support)
 - ❌ `window.registerWebviewViewProvider()` - Register webview views
-- ❌ Webview operations:
+- ⚠️ Webview operations:
   - ⚠️ `postMessage()` - Send messages to webview
   - ⚠️ `onDidReceiveMessage` - Receive messages from webview
-  - ❌ `asWebviewUri()` - Convert file URIs
+  - ✅ `asWebviewUri()` - Convert file URIs
   - ❌ `dispose()` - Dispose webview
 
 #### Window State & Events
@@ -450,11 +450,11 @@ These require provider registration and typically need package.json contribution
 - **Workspace Operations (findFiles, getWorkspaceFolder, asRelativePath - file search and path utilities)**
 
 ### Needs Extension ⚠️
-- Webview operations (more complete postMessage, etc.)
+- Webview operations (dispose, better message handling)
 
 ### Major Gaps to Fill ❌
 - File decorations (requires complex provider pattern)
-- Advanced webview operations (asWebviewUri, better message handling)
+- Advanced webview operations (better message handling, webview view providers)
 - Editor decorations (setDecorations, createTextEditorDecorationType)
 - Additional editor operations (show, hide, visible editors)
 - Workspace edit operations (applyEdit for batch modifications)
