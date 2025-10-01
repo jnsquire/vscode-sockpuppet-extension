@@ -23,11 +23,13 @@
 - `validate_range(range)` - Validate a range
 - `validate_position(position)` - Validate a position
 
-See [TextDocument API](docs/api/documents.md) for complete documentation.or common VS Code operations
+See [TextDocument API](docs/api/documents.md) for complete documentation.
+For common VS Code operations, refer to the relevant sections above.
 - **Real-time Communication** - Named pipe/Unix socket for low latency
 - **Event Subscriptions** - React to VS Code events (file saves, edits, selections, etc.)
 - **Type-Safe** - Written in TypeScript with Python type hints
-- **Extensible** - Easy to add new VS Code API methods
+- **Extension Integration** - Public API for other VS Code extensions
+- **Integrated Python Package** - Programmatically control VS Code through Python code. Perfect for automation, testing, or building custom workflows.
 - **Extension Integration** - Public API for other VS Code extensions Code extension with integrated Python package that allows you to programmatically control VS Code through Python code. Perfect for automation, testing, or building custom workflows.
 
 ## Overview
@@ -308,14 +310,6 @@ Contributions are welcome! See [DEVELOPMENT.md](DEVELOPMENT.md) for details on t
 Ensure that you've read through the extensions guidelines and follow the best practices for creating your extension.
 
 * [Extension Guidelines](https://code.visualstudio.com/api/references/extension-guidelines)
-
-## Working with Markdown
-
-You can author your README using Visual Studio Code. Here are some useful editor keyboard shortcuts:
-
-* Split the editor (`Cmd+\` on macOS or `Ctrl+\` on Windows and Linux).
-* Toggle preview (`Shift+Cmd+V` on macOS or `Shift+Ctrl+V` on Windows and Linux).
-* Press `Ctrl+Space` (Windows, Linux, macOS) to see a list of Markdown snippets.
 
 ## For more information
 
