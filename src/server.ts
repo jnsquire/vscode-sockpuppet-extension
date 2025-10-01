@@ -15,6 +15,7 @@ export class VSCodeServer {
     private clients: Set<net.Socket> = new Set();
     private clientSubscriptions: Map<net.Socket, Set<string>> = new Map();
     private eventDisposables: vscode.Disposable[] = [];
+    private webviewPanels: Map<string, vscode.WebviewPanel> = new Map();
 
     constructor(private context: vscode.ExtensionContext) {
         // Create platform-specific pipe path
@@ -222,6 +223,18 @@ export class VSCodeServer {
 
             case 'activeTextEditor.setSelection':
                 return this.handleEditorSetSelection(params);
+
+            case 'createWebviewPanel':
+                return this.createWebviewPanel(params);
+
+            case 'updateWebviewPanel':
+                return this.updateWebviewPanel(params);
+
+            case 'disposeWebviewPanel':
+                return this.disposeWebviewPanel(params);
+
+            case 'postMessageToWebview':
+                return this.postMessageToWebview(params);
 
             default:
                 throw new Error(`Unknown window method: window.${method}`);
@@ -465,6 +478,109 @@ export class VSCodeServer {
                 }
             }
         });
+    }
+
+    private createWebviewPanel(params: any): any {
+        const { id, viewType, title, showOptions, options, html } = params;
+        
+        // Dispose existing panel with same ID if it exists
+        if (this.webviewPanels.has(id)) {
+            this.webviewPanels.get(id)?.dispose();
+        }
+
+        // Create the webview panel
+        const panel = vscode.window.createWebviewPanel(
+            viewType,
+            title,
+            showOptions || vscode.ViewColumn.One,
+            {
+                enableScripts: options?.enableScripts ?? true,
+                retainContextWhenHidden: options?.retainContextWhenHidden ?? false,
+                localResourceRoots: options?.localResourceRoots?.map((uri: string) => vscode.Uri.parse(uri))
+            }
+        );
+
+        // Set initial HTML content
+        if (html) {
+            panel.webview.html = html;
+        }
+
+        // Handle panel disposal
+        panel.onDidDispose(() => {
+            this.webviewPanels.delete(id);
+        });
+
+        // Handle messages from webview
+        panel.webview.onDidReceiveMessage(message => {
+            this.broadcastEvent('webview.onDidReceiveMessage', {
+                id,
+                message
+            });
+        });
+
+        // Store the panel
+        this.webviewPanels.set(id, panel);
+
+        return { 
+            success: true,
+            id,
+            visible: panel.visible,
+            active: panel.active
+        };
+    }
+
+    private updateWebviewPanel(params: any): any {
+        const { id, html, title, iconPath } = params;
+        
+        const panel = this.webviewPanels.get(id);
+        if (!panel) {
+            throw new Error(`Webview panel not found: ${id}`);
+        }
+
+        if (html !== undefined) {
+            panel.webview.html = html;
+        }
+
+        if (title !== undefined) {
+            panel.title = title;
+        }
+
+        if (iconPath !== undefined) {
+            panel.iconPath = vscode.Uri.file(iconPath);
+        }
+
+        return { 
+            success: true,
+            visible: panel.visible,
+            active: panel.active
+        };
+    }
+
+    private disposeWebviewPanel(params: any): any {
+        const { id } = params;
+        
+        const panel = this.webviewPanels.get(id);
+        if (!panel) {
+            throw new Error(`Webview panel not found: ${id}`);
+        }
+
+        panel.dispose();
+        this.webviewPanels.delete(id);
+
+        return { success: true };
+    }
+
+    private postMessageToWebview(params: any): any {
+        const { id, message } = params;
+        
+        const panel = this.webviewPanels.get(id);
+        if (!panel) {
+            throw new Error(`Webview panel not found: ${id}`);
+        }
+
+        panel.webview.postMessage(message);
+
+        return { success: true };
     }
 
     private serializeTextDocument(doc: vscode.TextDocument): any {
