@@ -144,17 +144,17 @@ export class VSCodeServer {
 
             // Route to appropriate handler based on method prefix
             if (method.startsWith('window.')) {
-                result = await this.handleWindowRequest(method, params);
+                result = await this.handleWindowRequest(method.substring(7), params);
             } else if (method.startsWith('workspace.')) {
-                result = await this.handleWorkspaceRequest(method, params);
+                result = await this.handleWorkspaceRequest(method.substring(10), params);
             } else if (method.startsWith('document.')) {
-                result = await this.handleDocumentRequest(method, params);
+                result = await this.handleDocumentRequest(method.substring(9), params);
             } else if (method.startsWith('commands.')) {
-                result = await this.handleCommandsRequest(method, params);
+                result = await this.handleCommandsRequest(method.substring(9), params);
             } else if (method.startsWith('env.')) {
-                result = await this.handleEnvironmentRequest(method, params);
+                result = await this.handleEnvironmentRequest(method.substring(4), params);
             } else if (method.startsWith('events.')) {
-                result = this.handleEventsRequest(method, params, request.socket);
+                result = this.handleEventsRequest(method.substring(7), params, request.socket);
             } else {
                 throw new Error(`Unknown method: ${method}`);
             }
@@ -170,27 +170,27 @@ export class VSCodeServer {
 
     private async handleWindowRequest(method: string, params: any): Promise<any> {
         switch (method) {
-            case 'window.showInformationMessage':
+            case 'showInformationMessage':
                 return await vscode.window.showInformationMessage(params.message, ...(params.items || []));
 
-            case 'window.showWarningMessage':
+            case 'showWarningMessage':
                 return await vscode.window.showWarningMessage(params.message, ...(params.items || []));
 
-            case 'window.showErrorMessage':
+            case 'showErrorMessage':
                 return await vscode.window.showErrorMessage(params.message, ...(params.items || []));
 
-            case 'window.showQuickPick':
+            case 'showQuickPick':
                 return await vscode.window.showQuickPick(params.items, params.options);
 
-            case 'window.showInputBox':
+            case 'showInputBox':
                 return await vscode.window.showInputBox(params.options);
 
-            case 'window.showTextDocument':
+            case 'showTextDocument':
                 const doc = await vscode.workspace.openTextDocument(params.uri);
                 await vscode.window.showTextDocument(doc, params.options);
                 return { success: true };
 
-            case 'window.createOutputChannel':
+            case 'createOutputChannel':
                 const channel = vscode.window.createOutputChannel(params.name);
                 if (params.show) {
                     channel.show(params.preserveFocus);
@@ -200,7 +200,7 @@ export class VSCodeServer {
                 }
                 return { success: true };
 
-            case 'window.createTerminal':
+            case 'createTerminal':
                 const terminal = vscode.window.createTerminal(params.name, params.shellPath, params.shellArgs);
                 if (params.show) {
                     terminal.show(params.preserveFocus);
@@ -210,21 +210,21 @@ export class VSCodeServer {
                 }
                 return { success: true };
 
-            case 'window.setStatusBarMessage':
+            case 'setStatusBarMessage':
                 vscode.window.setStatusBarMessage(params.text, params.hideAfterTimeout);
                 return { success: true };
 
-            case 'window.activeTextEditor.edit':
+            case 'activeTextEditor.edit':
                 return await this.handleEditorEdit(params);
 
-            case 'window.activeTextEditor.selection':
+            case 'activeTextEditor.selection':
                 return this.handleEditorGetSelection();
 
-            case 'window.activeTextEditor.setSelection':
+            case 'activeTextEditor.setSelection':
                 return this.handleEditorSetSelection(params);
 
             default:
-                throw new Error(`Unknown window method: ${method}`);
+                throw new Error(`Unknown window method: window.${method}`);
         }
     }
 
@@ -279,26 +279,26 @@ export class VSCodeServer {
 
     private async handleWorkspaceRequest(method: string, params: any): Promise<any> {
         switch (method) {
-            case 'workspace.openTextDocument':
+            case 'openTextDocument':
                 const document = await vscode.workspace.openTextDocument(
                     params.uri || { content: params.content, language: params.language }
                 );
                 return this.serializeTextDocument(document);
 
-            case 'workspace.saveAll':
+            case 'saveAll':
                 return await vscode.workspace.saveAll(params.includeUntitled);
 
-            case 'workspace.workspaceFolders':
+            case 'workspaceFolders':
                 return vscode.workspace.workspaceFolders?.map(folder => ({
                     uri: folder.uri.toString(),
                     name: folder.name,
                     index: folder.index
                 })) || [];
 
-            case 'workspace.textDocuments':
+            case 'textDocuments':
                 return vscode.workspace.textDocuments.map(doc => this.serializeTextDocument(doc));
 
-            case 'workspace.getTextDocument':
+            case 'getTextDocument':
                 const foundDoc = vscode.workspace.textDocuments.find(d => d.uri.toString() === params.uri);
                 if (!foundDoc) {
                     throw new Error(`Document not found: ${params.uri}`);
@@ -306,7 +306,7 @@ export class VSCodeServer {
                 return this.serializeTextDocument(foundDoc);
 
             default:
-                throw new Error(`Unknown workspace method: ${method}`);
+                throw new Error(`Unknown workspace method: workspace.${method}`);
         }
     }
 
@@ -317,23 +317,23 @@ export class VSCodeServer {
         }
 
         switch (method) {
-            case 'document.save':
+            case 'save':
                 const saved = await doc.save();
                 return { success: saved, version: doc.version };
 
-            case 'document.lineAt':
+            case 'lineAt':
                 const line = doc.lineAt(params.line);
                 return this.serializeTextLine(line);
 
-            case 'document.offsetAt':
+            case 'offsetAt':
                 const position = new vscode.Position(params.position.line, params.position.character);
                 return doc.offsetAt(position);
 
-            case 'document.positionAt':
+            case 'positionAt':
                 const pos = doc.positionAt(params.offset);
                 return { line: pos.line, character: pos.character };
 
-            case 'document.getText':
+            case 'getText':
                 if (params.range) {
                     const range = new vscode.Range(
                         params.range.start.line,
@@ -345,7 +345,7 @@ export class VSCodeServer {
                 }
                 return doc.getText();
 
-            case 'document.getWordRangeAtPosition':
+            case 'getWordRangeAtPosition':
                 const wordPos = new vscode.Position(params.position.line, params.position.character);
                 const regex = params.regex ? new RegExp(params.regex) : undefined;
                 const wordRange = doc.getWordRangeAtPosition(wordPos, regex);
@@ -357,7 +357,7 @@ export class VSCodeServer {
                     end: { line: wordRange.end.line, character: wordRange.end.character }
                 };
 
-            case 'document.validateRange':
+            case 'validateRange':
                 const rangeToValidate = new vscode.Range(
                     params.range.start.line,
                     params.range.start.character,
@@ -370,59 +370,59 @@ export class VSCodeServer {
                     end: { line: validatedRange.end.line, character: validatedRange.end.character }
                 };
 
-            case 'document.validatePosition':
+            case 'validatePosition':
                 const posToValidate = new vscode.Position(params.position.line, params.position.character);
                 const validatedPos = doc.validatePosition(posToValidate);
                 return { line: validatedPos.line, character: validatedPos.character };
 
             default:
-                throw new Error(`Unknown document method: ${method}`);
+                throw new Error(`Unknown document method: document.${method}`);
         }
     }
 
     private async handleCommandsRequest(method: string, params: any): Promise<any> {
         switch (method) {
-            case 'commands.executeCommand':
+            case 'executeCommand':
                 return await vscode.commands.executeCommand(params.command, ...(params.args || []));
 
-            case 'commands.getCommands':
+            case 'getCommands':
                 return await vscode.commands.getCommands(params.filterInternal);
 
             default:
-                throw new Error(`Unknown commands method: ${method}`);
+                throw new Error(`Unknown commands method: commands.${method}`);
         }
     }
 
     private async handleEnvironmentRequest(method: string, params: any): Promise<any> {
         switch (method) {
-            case 'env.clipboard.writeText':
+            case 'clipboard.writeText':
                 await vscode.env.clipboard.writeText(params.text);
                 return { success: true };
 
-            case 'env.clipboard.readText':
+            case 'clipboard.readText':
                 return await vscode.env.clipboard.readText();
 
-            case 'env.openExternal':
+            case 'openExternal':
                 return await vscode.env.openExternal(vscode.Uri.parse(params.uri));
 
             default:
-                throw new Error(`Unknown environment method: ${method}`);
+                throw new Error(`Unknown environment method: env.${method}`);
         }
     }
 
     private handleEventsRequest(method: string, params: any, socket: net.Socket): any {
         switch (method) {
-            case 'events.subscribe':
+            case 'subscribe':
                 return this.subscribeToEvent(socket, params.event);
 
-            case 'events.unsubscribe':
+            case 'unsubscribe':
                 return this.unsubscribeFromEvent(socket, params.event);
 
-            case 'events.listSubscriptions':
+            case 'listSubscriptions':
                 return Array.from(this.clientSubscriptions.get(socket) || []);
 
             default:
-                throw new Error(`Unknown events method: ${method}`);
+                throw new Error(`Unknown events method: events.${method}`);
         }
     }
 
