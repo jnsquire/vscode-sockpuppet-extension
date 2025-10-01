@@ -1,4 +1,4 @@
-# VSCode Sockpuppe## Features
+# VSCode Sockpuppet Features
 
 - **Full TextDocument Object Model** - Rich API mirroring VS Code's TextDocument interface
 - **No Package.Json Modifications Required** - All operations are dynamic

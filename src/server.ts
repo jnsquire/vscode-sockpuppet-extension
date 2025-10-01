@@ -19,6 +19,7 @@ export class VSCodeServer {
     private diagnosticCollections: Map<string, vscode.DiagnosticCollection> = new Map();
     private statusBarItems: Map<string, vscode.StatusBarItem> = new Map();
     private progressTokens: Map<string, vscode.CancellationTokenSource> = new Map();
+    private terminals: Map<string, vscode.Terminal> = new Map();
 
     constructor(private context: vscode.ExtensionContext) {
         // Create platform-specific pipe path
@@ -163,6 +164,8 @@ export class VSCodeServer {
                 result = await this.handleFileSystemRequest(method.substring(3), params);
             } else if (method.startsWith('languages.')) {
                 result = await this.handleLanguagesRequest(method.substring(10), params);
+            } else if (method.startsWith('terminal.')) {
+                result = await this.handleTerminalRequest(method.substring(9), params);
             } else {
                 throw new Error(`Unknown method: ${method}`);
             }
@@ -209,14 +212,10 @@ export class VSCodeServer {
                 return { success: true };
 
             case 'createTerminal':
+                const terminalId = `terminal-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
                 const terminal = vscode.window.createTerminal(params.name, params.shellPath, params.shellArgs);
-                if (params.show) {
-                    terminal.show(params.preserveFocus);
-                }
-                if (params.text) {
-                    terminal.sendText(params.text, params.addNewLine !== false);
-                }
-                return { success: true };
+                this.terminals.set(terminalId, terminal);
+                return { terminalId };
 
             case 'setStatusBarMessage':
                 vscode.window.setStatusBarMessage(params.text, params.hideAfterTimeout);
@@ -230,6 +229,30 @@ export class VSCodeServer {
 
             case 'activeTextEditor.setSelection':
                 return this.handleEditorSetSelection(params);
+
+            case 'activeTextEditor.selections':
+                return this.handleEditorGetSelections();
+
+            case 'activeTextEditor.setSelections':
+                return this.handleEditorSetSelections(params);
+
+            case 'activeTextEditor.insertSnippet':
+                return await this.handleEditorInsertSnippet(params);
+
+            case 'activeTextEditor.revealRange':
+                return this.handleEditorRevealRange(params);
+
+            case 'activeTextEditor.options':
+                return this.handleEditorGetOptions();
+
+            case 'activeTextEditor.setOptions':
+                return this.handleEditorSetOptions(params);
+
+            case 'activeTextEditor.visibleRanges':
+                return this.handleEditorGetVisibleRanges();
+
+            case 'activeTextEditor.viewColumn':
+                return this.handleEditorGetViewColumn();
 
             case 'createWebviewPanel':
                 return this.createWebviewPanel(params);
@@ -307,6 +330,150 @@ export class VSCodeServer {
         const end = new vscode.Position(params.end.line, params.end.character);
         vscode.window.activeTextEditor.selection = new vscode.Selection(start, end);
         return { success: true };
+    }
+
+    private handleEditorGetSelections(): any {
+        if (!vscode.window.activeTextEditor) {
+            throw new Error('No active text editor');
+        }
+
+        return vscode.window.activeTextEditor.selections.map(selection => ({
+            start: { line: selection.start.line, character: selection.start.character },
+            end: { line: selection.end.line, character: selection.end.character },
+            anchor: { line: selection.anchor.line, character: selection.anchor.character },
+            active: { line: selection.active.line, character: selection.active.character }
+        }));
+    }
+
+    private handleEditorSetSelections(params: any): any {
+        if (!vscode.window.activeTextEditor) {
+            throw new Error('No active text editor');
+        }
+
+        vscode.window.activeTextEditor.selections = params.selections.map((sel: any) => {
+            const anchor = new vscode.Position(sel.anchor.line, sel.anchor.character);
+            const active = new vscode.Position(sel.active.line, sel.active.character);
+            return new vscode.Selection(anchor, active);
+        });
+        return { success: true };
+    }
+
+    private async handleEditorInsertSnippet(params: any): Promise<any> {
+        if (!vscode.window.activeTextEditor) {
+            throw new Error('No active text editor');
+        }
+
+        const snippet = new vscode.SnippetString(params.snippet);
+        
+        let location: vscode.Position | vscode.Range | vscode.Position[] | vscode.Range[] | undefined;
+        if (params.location) {
+            if (Array.isArray(params.location)) {
+                location = params.location.map((loc: any) => {
+                    if (loc.start) {
+                        // It's a range
+                        return new vscode.Range(
+                            loc.start.line,
+                            loc.start.character,
+                            loc.end.line,
+                            loc.end.character
+                        );
+                    } else {
+                        // It's a position
+                        return new vscode.Position(loc.line, loc.character);
+                    }
+                });
+            } else if (params.location.start) {
+                // Single range
+                location = new vscode.Range(
+                    params.location.start.line,
+                    params.location.start.character,
+                    params.location.end.line,
+                    params.location.end.character
+                );
+            } else {
+                // Single position
+                location = new vscode.Position(params.location.line, params.location.character);
+            }
+        }
+
+        const options = params.options ? {
+            undoStopBefore: params.options.undoStopBefore,
+            undoStopAfter: params.options.undoStopAfter
+        } : undefined;
+
+        const success = await vscode.window.activeTextEditor.insertSnippet(snippet, location, options);
+        return { success };
+    }
+
+    private handleEditorRevealRange(params: any): any {
+        if (!vscode.window.activeTextEditor) {
+            throw new Error('No active text editor');
+        }
+
+        const range = new vscode.Range(
+            params.start.line,
+            params.start.character,
+            params.end.line,
+            params.end.character
+        );
+
+        // Map reveal type string to VS Code enum
+        let revealType = vscode.TextEditorRevealType.Default;
+        if (params.revealType === 'InCenter') {
+            revealType = vscode.TextEditorRevealType.InCenter;
+        } else if (params.revealType === 'AtTop') {
+            revealType = vscode.TextEditorRevealType.AtTop;
+        } else if (params.revealType === 'InCenterIfOutsideViewport') {
+            revealType = vscode.TextEditorRevealType.InCenterIfOutsideViewport;
+        }
+
+        vscode.window.activeTextEditor.revealRange(range, revealType);
+        return { success: true };
+    }
+
+    private handleEditorGetOptions(): any {
+        if (!vscode.window.activeTextEditor) {
+            throw new Error('No active text editor');
+        }
+
+        const options = vscode.window.activeTextEditor.options;
+        return {
+            tabSize: options.tabSize,
+            insertSpaces: options.insertSpaces,
+            cursorStyle: options.cursorStyle,
+            lineNumbers: options.lineNumbers
+        };
+    }
+
+    private handleEditorSetOptions(params: any): any {
+        if (!vscode.window.activeTextEditor) {
+            throw new Error('No active text editor');
+        }
+
+        vscode.window.activeTextEditor.options = {
+            ...vscode.window.activeTextEditor.options,
+            ...params
+        };
+        return { success: true };
+    }
+
+    private handleEditorGetVisibleRanges(): any {
+        if (!vscode.window.activeTextEditor) {
+            throw new Error('No active text editor');
+        }
+
+        return vscode.window.activeTextEditor.visibleRanges.map(range => ({
+            start: { line: range.start.line, character: range.start.character },
+            end: { line: range.end.line, character: range.end.character }
+        }));
+    }
+
+    private handleEditorGetViewColumn(): any {
+        if (!vscode.window.activeTextEditor) {
+            throw new Error('No active text editor');
+        }
+
+        return { viewColumn: vscode.window.activeTextEditor.viewColumn || -1 };
     }
 
     private async handleWorkspaceRequest(method: string, params: any): Promise<any> {
@@ -1008,6 +1175,75 @@ export class VSCodeServer {
             default:
                 return vscode.ProgressLocation.Notification;
         }
+    }
+
+    // Terminal Handlers
+    private async handleTerminalRequest(method: string, params: any): Promise<any> {
+        switch (method) {
+            case 'sendText':
+                return this.terminalSendText(params);
+
+            case 'show':
+                return this.terminalShow(params);
+
+            case 'hide':
+                return this.terminalHide(params);
+
+            case 'dispose':
+                return this.terminalDispose(params);
+
+            default:
+                throw new Error(`Unknown terminal method: terminal.${method}`);
+        }
+    }
+
+    private terminalSendText(params: any): any {
+        const { terminalId, text, addNewLine = true } = params;
+        const terminal = this.terminals.get(terminalId);
+
+        if (!terminal) {
+            throw new Error(`Terminal not found: ${terminalId}`);
+        }
+
+        terminal.sendText(text, addNewLine);
+        return { success: true };
+    }
+
+    private terminalShow(params: any): any {
+        const { terminalId, preserveFocus = true } = params;
+        const terminal = this.terminals.get(terminalId);
+
+        if (!terminal) {
+            throw new Error(`Terminal not found: ${terminalId}`);
+        }
+
+        terminal.show(preserveFocus);
+        return { success: true };
+    }
+
+    private terminalHide(params: any): any {
+        const { terminalId } = params;
+        const terminal = this.terminals.get(terminalId);
+
+        if (!terminal) {
+            throw new Error(`Terminal not found: ${terminalId}`);
+        }
+
+        terminal.hide();
+        return { success: true };
+    }
+
+    private terminalDispose(params: any): any {
+        const { terminalId } = params;
+        const terminal = this.terminals.get(terminalId);
+
+        if (!terminal) {
+            throw new Error(`Terminal not found: ${terminalId}`);
+        }
+
+        terminal.dispose();
+        this.terminals.delete(terminalId);
+        return { success: true };
     }
 
     private setupEventListeners(): void {

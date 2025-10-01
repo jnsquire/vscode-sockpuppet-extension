@@ -27,25 +27,30 @@ This document tracks the implementation status of VS Code APIs that can be expos
 - ❌ `window.visibleTextEditors` - All visible editors
 - ❌ `window.showTextDocument()` - Show document in editor
 - ❌ `window.createTextEditorDecorationType()` - Create editor decorations
-- ❌ TextEditor operations:
-  - ❌ `edit()` - Apply text edits
-  - ❌ `insertSnippet()` - Insert snippets
+- ✅ TextEditor operations:
+  - ✅ `edit()` - Apply text edits with EditBuilder
+  - ✅ `insertSnippet()` - Insert snippets with placeholders
   - ❌ `setDecorations()` - Apply decorations
-  - ❌ `revealRange()` - Scroll to range
+  - ✅ `revealRange()` - Scroll to range with reveal types
   - ❌ `show()` - Show editor
   - ❌ `hide()` - Hide editor
+  - ✅ `selection` - Get/set primary selection
+  - ✅ `selections` - Get/set all selections (multi-cursor)
+  - ✅ `options` - Get/set editor options (tabSize, insertSpaces)
+  - ✅ `visibleRanges` - Get visible ranges in viewport
+  - ✅ `viewColumn` - Get editor column position
 
 #### Output & Terminals
 - ✅ `window.createOutputChannel()` - Create output channels
-- ✅ `window.createTerminal()` - Create terminals
+- ✅ `window.createTerminal()` - Create terminals (returns Terminal object)
 - ❌ `window.onDidOpenTerminal` - Terminal opened event
 - ✅ `window.onDidCloseTerminal` - Terminal closed event
 - ❌ `window.onDidChangeTerminalState` - Terminal state changed
-- ❌ Terminal operations:
-  - ❌ `sendText()` - Send text to terminal
-  - ❌ `show()` - Show terminal
-  - ❌ `hide()` - Hide terminal
-  - ❌ `dispose()` - Dispose terminal
+- ✅ Terminal operations:
+  - ✅ `sendText()` - Send text to terminal
+  - ✅ `show()` - Show terminal
+  - ✅ `hide()` - Hide terminal
+  - ✅ `dispose()` - Dispose terminal
 
 #### Status Bar
 - ✅ `window.createStatusBarItem()` - Create status bar items
@@ -425,7 +430,7 @@ These require provider registration and typically need package.json contribution
 - Window messages (info, warning, error)
 - Quick Pick and Input Box (user input/selection)
 - Workspace operations (open document, save all, folders)
-- Output channels and terminals (creation)
+- Output channels (creation and basic operations)
 - Event subscriptions (VS Code-style with disposables)
 - Clipboard operations
 - Webview panels (basic)
@@ -435,28 +440,27 @@ These require provider registration and typically need package.json contribution
 - **Progress Indicators (withProgress for notifications/window/source control)**
 - **Command Execution (executeCommand, getCommands)**
 - **Configuration API (get, update, inspect, has - full read/write support)**
+- **TextEditor Operations (edit with EditBuilder, insert snippets, reveal ranges, multi-cursor selections, options, viewport queries)**
+- **Terminal Operations (create, sendText, show, hide, dispose - full object-oriented API)**
 
 ### Needs Extension ⚠️
 - Webview operations (more complete postMessage, etc.)
-- Active editor access (currently read-only)
-- Terminal operations (need sendText, show/hide)
 
 ### Major Gaps to Fill ❌
-- Advanced TextEditor edit operations (insertions, deletions, selections)
 - File system watchers (workspace.createFileSystemWatcher)
 - File decorations
 - Tab management (window.tabGroups)
-- Advanced terminal operations (sendText, show/hide)
 - Many workspace and window events (willSave, file create/delete/rename events)
 - File open/save dialogs
 - Advanced webview operations
+- Editor decorations (setDecorations)
 
 ## Next Steps
 
 Based on this analysis, the recommended implementation order is:
 
 1. ✅ **Quick Pick & Input Box** - Enable user input/selection (COMPLETED)
-2. ⚠️ **TextEditor Editing API** - Core editing operations (basic exists, needs expansion)
+2. ✅ **TextEditor Editing API** - Core editing operations (COMPLETED - edit, insertSnippet, revealRange, selections, options, viewport)
 3. ✅ **File System Operations** - Comprehensive file I/O (COMPLETED)
 4. ✅ **Execute Commands** - Run built-in VS Code commands (COMPLETED)
 5. ✅ **Diagnostics API** - Show errors and warnings (COMPLETED)
