@@ -43,9 +43,9 @@ This document tracks the implementation status of VS Code APIs that can be expos
 #### Output & Terminals
 - ✅ `window.createOutputChannel()` - Create output channels
 - ✅ `window.createTerminal()` - Create terminals (returns Terminal object)
-- ❌ `window.onDidOpenTerminal` - Terminal opened event
+- ✅ `window.onDidOpenTerminal` - Terminal opened event
 - ✅ `window.onDidCloseTerminal` - Terminal closed event
-- ❌ `window.onDidChangeTerminalState` - Terminal state changed
+- ✅ `window.onDidChangeTerminalState` - Terminal state changed
 - ✅ Terminal operations:
   - ✅ `sendText()` - Send text to terminal
   - ✅ `show()` - Show terminal
@@ -81,10 +81,10 @@ This document tracks the implementation status of VS Code APIs that can be expos
 - ✅ `window.onDidChangeActiveTextEditor` - Active editor changed
 - ✅ `window.onDidChangeVisibleTextEditors` - Visible editors changed
 - ✅ `window.onDidChangeTextEditorSelection` - Selection changed
-- ❌ `window.onDidChangeTextEditorVisibleRanges` - Visible ranges changed
-- ❌ `window.onDidChangeTextEditorOptions` - Editor options changed
-- ❌ `window.onDidChangeTextEditorViewColumn` - View column changed
-- ❌ `window.onDidChangeWindowState` - Window state changed
+- ✅ `window.onDidChangeTextEditorVisibleRanges` - Visible ranges changed
+- ✅ `window.onDidChangeTextEditorOptions` - Editor options changed
+- ✅ `window.onDidChangeTextEditorViewColumn` - View column changed
+- ✅ `window.onDidChangeWindowState` - Window state changed
 
 ### Workspace Operations
 
@@ -123,9 +123,9 @@ This document tracks the implementation status of VS Code APIs that can be expos
 - ✅ `workspace.onDidChangeTextDocument` - Document content changed
 - ✅ `workspace.onDidChangeWorkspaceFolders` - Folders changed
 - ❌ `workspace.onWillSaveTextDocument` - Before save (can modify)
-- ❌ `workspace.onDidCreateFiles` - Files created
-- ❌ `workspace.onDidDeleteFiles` - Files deleted
-- ❌ `workspace.onDidRenameFiles` - Files renamed
+- ✅ `workspace.onDidCreateFiles` - Files created
+- ✅ `workspace.onDidDeleteFiles` - Files deleted
+- ✅ `workspace.onDidRenameFiles` - Files renamed
 - ❌ `workspace.onWillCreateFiles` - Before create (can prevent)
 - ❌ `workspace.onWillDeleteFiles` - Before delete (can prevent)
 - ❌ `workspace.onWillRenameFiles` - Before rename (can prevent)
@@ -446,17 +446,19 @@ These require provider registration and typically need package.json contribution
 - **File System Watchers (workspace.createFileSystemWatcher with glob patterns, event handlers for create/change/delete)**
 - **Environment Properties (workspace.env with app_name, language, machine_id, session_id, uri_scheme, shell, ui_kind, clipboard, open_external)**
 - **Tab Management (window.tab_groups with get_all, get_active, close operations, event subscriptions)**
+- **Complete Event Coverage (all onDid* events for window, workspace, editor, terminal, and file operations)**
 
 ### Needs Extension ⚠️
 - Webview operations (more complete postMessage, etc.)
 
 ### Major Gaps to Fill ❌
-- File decorations
-- Tab management (window.tabGroups)
-- Many workspace and window events (willSave, file create/delete/rename events)
+- File decorations (requires complex provider pattern)
+- Advanced webview operations (asWebviewUri, better message handling)
+- Editor decorations (setDecorations, createTextEditorDecorationType)
+- Additional editor operations (show, hide, visible editors)
+- Workspace operations (findFiles, findTextInFiles, applyEdit)
 - File open/save dialogs
-- Advanced webview operations
-- Editor decorations (setDecorations)
+- onWill* events (requires bidirectional async communication - can modify/cancel)
 
 ## Next Steps
 

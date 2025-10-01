@@ -1517,6 +1517,60 @@ export class VSCodeServer {
             })
         );
 
+        this.eventDisposables.push(
+            vscode.window.onDidChangeTerminalState(e => {
+                this.broadcastEvent('window.onDidChangeTerminalState', {
+                    name: e.name,
+                    isInteractedWith: e.state?.isInteractedWith || false
+                });
+            })
+        );
+
+        // Text editor change events
+        this.eventDisposables.push(
+            vscode.window.onDidChangeTextEditorVisibleRanges(e => {
+                this.broadcastEvent('window.onDidChangeTextEditorVisibleRanges', {
+                    uri: e.textEditor.document.uri.toString(),
+                    visibleRanges: e.visibleRanges.map(range => ({
+                        start: { line: range.start.line, character: range.start.character },
+                        end: { line: range.end.line, character: range.end.character }
+                    }))
+                });
+            })
+        );
+
+        this.eventDisposables.push(
+            vscode.window.onDidChangeTextEditorOptions(e => {
+                this.broadcastEvent('window.onDidChangeTextEditorOptions', {
+                    uri: e.textEditor.document.uri.toString(),
+                    options: {
+                        tabSize: e.options.tabSize,
+                        insertSpaces: e.options.insertSpaces,
+                        cursorStyle: e.options.cursorStyle,
+                        lineNumbers: e.options.lineNumbers
+                    }
+                });
+            })
+        );
+
+        this.eventDisposables.push(
+            vscode.window.onDidChangeTextEditorViewColumn(e => {
+                this.broadcastEvent('window.onDidChangeTextEditorViewColumn', {
+                    uri: e.textEditor.document.uri.toString(),
+                    viewColumn: e.viewColumn
+                });
+            })
+        );
+
+        // Window state events
+        this.eventDisposables.push(
+            vscode.window.onDidChangeWindowState(e => {
+                this.broadcastEvent('window.onDidChangeWindowState', {
+                    focused: e.focused
+                });
+            })
+        );
+
         // Workspace events
         this.eventDisposables.push(
             vscode.workspace.onDidChangeWorkspaceFolders(e => {
@@ -1531,6 +1585,34 @@ export class VSCodeServer {
             vscode.workspace.onDidChangeConfiguration(e => {
                 this.broadcastEvent('workspace.onDidChangeConfiguration', {
                     affectsConfiguration: (section: string) => e.affectsConfiguration(section)
+                });
+            })
+        );
+
+        // File system events
+        this.eventDisposables.push(
+            vscode.workspace.onDidCreateFiles(e => {
+                this.broadcastEvent('workspace.onDidCreateFiles', {
+                    files: e.files.map(f => ({ uri: f.toString() }))
+                });
+            })
+        );
+
+        this.eventDisposables.push(
+            vscode.workspace.onDidDeleteFiles(e => {
+                this.broadcastEvent('workspace.onDidDeleteFiles', {
+                    files: e.files.map(f => ({ uri: f.toString() }))
+                });
+            })
+        );
+
+        this.eventDisposables.push(
+            vscode.workspace.onDidRenameFiles(e => {
+                this.broadcastEvent('workspace.onDidRenameFiles', {
+                    files: e.files.map(f => ({
+                        oldUri: f.oldUri.toString(),
+                        newUri: f.newUri.toString()
+                    }))
                 });
             })
         );
