@@ -18,8 +18,8 @@ This document tracks the implementation status of VS Code APIs that can be expos
 - ✅ `window.showErrorMessage()` - Show error messages
 - ✅ `window.showQuickPick()` - Show quick pick menus
 - ✅ `window.showInputBox()` - Show input boxes
-- ❌ `window.showOpenDialog()` - Show file open dialogs
-- ❌ `window.showSaveDialog()` - Show file save dialogs
+- ✅ `window.showOpenDialog()` - Show file open dialogs
+- ✅ `window.showSaveDialog()` - Show file save dialogs
 - ❌ `window.showWorkspaceFolderPick()` - Pick workspace folders
 
 #### Editors
@@ -430,11 +430,12 @@ These require provider registration and typically need package.json contribution
 - TextDocument API (comprehensive)
 - Window messages (info, warning, error)
 - Quick Pick and Input Box (user input/selection)
+- **File Dialogs (showOpenDialog, showSaveDialog - file/folder selection with filters)**
 - Workspace operations (open document, save all, folders)
 - Output channels (creation and basic operations)
 - Event subscriptions (VS Code-style with disposables)
 - Clipboard operations
-- Webview panels (basic)
+- Webview panels (basic, asWebviewUri for local resources)
 - **File System API (read, write, delete, rename, copy, stat, directory operations)**
 - **Diagnostics API (create collections, set/delete/clear diagnostics)**
 - **Status Bar Items (create, show/hide, set properties, dispose)**
@@ -456,9 +457,9 @@ These require provider registration and typically need package.json contribution
 - File decorations (requires complex provider pattern)
 - Advanced webview operations (better message handling, webview view providers)
 - Editor decorations (setDecorations, createTextEditorDecorationType)
-- Additional editor operations (show, hide, visible editors)
+- Additional editor operations (show, hide, visible editors, showTextDocument)
 - Workspace edit operations (applyEdit for batch modifications)
-- File open/save dialogs
+- Workspace folder picker (showWorkspaceFolderPick)
 - onWill* events (requires bidirectional async communication - can modify/cancel)
 
 ## Next Steps

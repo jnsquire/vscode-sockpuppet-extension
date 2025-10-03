@@ -197,6 +197,12 @@ export class VSCodeServer {
             case 'showInputBox':
                 return await vscode.window.showInputBox(params.options);
 
+            case 'showOpenDialog':
+                return await this.showOpenDialog(params);
+
+            case 'showSaveDialog':
+                return await this.showSaveDialog(params);
+
             case 'showTextDocument':
                 const doc = await vscode.workspace.openTextDocument(params.uri);
                 await vscode.window.showTextDocument(doc, params.options);
@@ -737,6 +743,86 @@ export class VSCodeServer {
                 }
             }
         });
+    }
+
+    private async showOpenDialog(params: any): Promise<any> {
+        const options = params.options || {};
+        
+        // Build OpenDialogOptions
+        const dialogOptions: vscode.OpenDialogOptions = {};
+        
+        if (options.defaultUri) {
+            dialogOptions.defaultUri = vscode.Uri.parse(options.defaultUri);
+        }
+        
+        if (options.openLabel) {
+            dialogOptions.openLabel = options.openLabel;
+        }
+        
+        if (options.canSelectFiles !== undefined) {
+            dialogOptions.canSelectFiles = options.canSelectFiles;
+        }
+        
+        if (options.canSelectFolders !== undefined) {
+            dialogOptions.canSelectFolders = options.canSelectFolders;
+        }
+        
+        if (options.canSelectMany !== undefined) {
+            dialogOptions.canSelectMany = options.canSelectMany;
+        }
+        
+        if (options.filters) {
+            dialogOptions.filters = options.filters;
+        }
+        
+        if (options.title) {
+            dialogOptions.title = options.title;
+        }
+        
+        // Show dialog
+        const result = await vscode.window.showOpenDialog(dialogOptions);
+        
+        if (result) {
+            return {
+                uris: result.map(uri => uri.toString())
+            };
+        }
+        
+        return null;
+    }
+
+    private async showSaveDialog(params: any): Promise<any> {
+        const options = params.options || {};
+        
+        // Build SaveDialogOptions
+        const dialogOptions: vscode.SaveDialogOptions = {};
+        
+        if (options.defaultUri) {
+            dialogOptions.defaultUri = vscode.Uri.parse(options.defaultUri);
+        }
+        
+        if (options.saveLabel) {
+            dialogOptions.saveLabel = options.saveLabel;
+        }
+        
+        if (options.filters) {
+            dialogOptions.filters = options.filters;
+        }
+        
+        if (options.title) {
+            dialogOptions.title = options.title;
+        }
+        
+        // Show dialog
+        const result = await vscode.window.showSaveDialog(dialogOptions);
+        
+        if (result) {
+            return {
+                uri: result.toString()
+            };
+        }
+        
+        return null;
     }
 
     private createWebviewPanel(params: any): any {
