@@ -2,33 +2,45 @@
   "name": "vscode-sockpuppet",
   "displayName": "VSCode Sockpuppet",
   "description": "Control VS Code programmatically from Python scripts",
-  "version": "0.1.0",
-  "publisher": "your-publisher-name",
+  "version": "0.8.0",
+  "publisher": "joel0430",
   "author": {
-    "name": "Your Name"
+    "name": "Joel Squire"
   },
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "https://github.com/yourusername/vscode-sockpuppet-extension.git"
+    "url": "https://github.com/jnsquire/vscode-sockpuppet-extension.git"
   },
   "bugs": {
-    "url": "https://github.com/yourusername/vscode-sockpuppet-extension/issues"
+    "url": "https://github.com/jnsquire/vscode-sockpuppet-extension/issues"
   },
-  "homepage": "https://github.com/yourusername/vscode-sockpuppet-extension#readme",
+  "homepage": "https://jnsquire.github.io/vscode-sockpuppet-python/",
   "keywords": [
     "python",
     "automation",
     "api",
     "scripting",
-    "ipc"
+    "ipc",
+    "programmatic",
+    "control",
+    "testing",
+    "workflow"
   ],
   "engines": {
     "vscode": "^1.104.0"
   },
   "categories": [
+    "Programming Languages",
+    "Testing",
     "Other"
   ],
+  "icon": "sockpuppet.png",
+  "galleryBanner": {
+    "color": "#1e1e1e",
+    "theme": "dark"
+  },
+  "qna": "marketplace",
   "activationEvents": [
     "onStartupFinished"
   ],

@@ -1,3 +1,4 @@
+# Build and development files
 .vscode/**
 .vscode-test/**
 out/**
@@ -12,3 +13,52 @@ vsc-extension-quickstart.md
 **/*.map
 **/*.ts
 **/.vscode-test.*
+
+# Python development files (keep compiled extension only)
+python/.git/**
+python/.github/**
+python/.venv/**
+python/__pycache__/**
+python/**/*.pyc
+python/**/__pycache__/**
+python/tests/**
+python/.pytest_cache/**
+python/.mypy_cache/**
+python/.ruff_cache/**
+.ruff_cache/**
+python/site/**
+python/docs_src/**
+python/uv.lock
+python/.python-version
+python/DEVELOPMENT.md
+python/DOCS_AUTOMATION.md
+python/GITHUB_PAGES_SETUP.md
+python/docs.py
+
+# Documentation source (users get links to GitHub Pages)
+docs/**
+ICON_GUIDE.md
+
+# Icon optimization artifacts
+resize_icon.py
+sockpuppet_original.png
+
+# Git and CI
+.git/**
+.github/**
+.gitmodules
+
+# IDE files
+.idea/**
+*.swp
+*.swo
+*~
+
+# Test files
+**/.eslintrc.json
+**/test/**
+**/*.test.ts
+**/*.test.js
+
+# Misc
+*.vsix
