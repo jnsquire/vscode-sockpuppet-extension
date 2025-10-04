@@ -2,7 +2,7 @@
   "name": "vscode-sockpuppet",
   "displayName": "VSCode Sockpuppet",
   "description": "Control VS Code programmatically from Python scripts",
-  "version": "0.9.0",
+  "version": "0.9.1",
   "publisher": "JoelSquire",
   "author": {
     "name": "Joel Squire"

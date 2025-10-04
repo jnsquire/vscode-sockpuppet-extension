@@ -5,6 +5,55 @@ import * as path from 'path';
 import * as fs from 'fs';
 import * as crypto from 'crypto';
 
+/**
+ * Manages a webview panel and its associated event disposables
+ */
+class WebviewPanelState {
+    constructor(
+        public readonly panel: vscode.WebviewPanel,
+        public readonly disposables: vscode.Disposable[]
+    ) {}
+
+    /**
+     * Dispose all event listeners for this panel
+     */
+    disposeListeners(): void {
+        this.disposables.forEach(d => d.dispose());
+    }
+
+    /**
+     * Dispose the panel and all its listeners
+     */
+    dispose(): void {
+        this.disposeListeners();
+        this.panel.dispose();
+    }
+}
+
+/**
+ * Manages a file system watcher and its associated event disposables
+ */
+class FileSystemWatcherState {
+    constructor(
+        public readonly watcher: vscode.FileSystemWatcher,
+        public readonly disposables: vscode.Disposable[]
+    ) {}
+
+    /**
+     * Dispose all event listeners for this watcher
+     */
+    disposeListeners(): void {
+        this.disposables.forEach(d => d.dispose());
+    }
+
+    /**
+     * Dispose the watcher and all its listeners
+     */
+    dispose(): void {
+        this.disposeListeners();
+        this.watcher.dispose();
+    }
+}
 
 export class VSCodeServer {
     private server: net.Server | undefined;
@@ -12,12 +61,12 @@ export class VSCodeServer {
     private clients: Set<net.Socket> = new Set();
     private clientSubscriptions: Map<net.Socket, Set<string>> = new Map();
     private eventDisposables: vscode.Disposable[] = [];
-    private webviewPanels: Map<string, vscode.WebviewPanel> = new Map();
+    private webviewPanels: Map<string, WebviewPanelState> = new Map();
     private diagnosticCollections: Map<string, vscode.DiagnosticCollection> = new Map();
     private statusBarItems: Map<string, vscode.StatusBarItem> = new Map();
     private progressTokens: Map<string, vscode.CancellationTokenSource> = new Map();
     private terminals: Map<string, vscode.Terminal> = new Map();
-    private fileWatchers: Map<string, vscode.FileSystemWatcher> = new Map();
+    private fileWatchers: Map<string, FileSystemWatcherState> = new Map();
     private decorationTypes: Map<string, vscode.TextEditorDecorationType> = new Map();
 
     constructor(private context: vscode.ExtensionContext) {
@@ -953,8 +1002,9 @@ export class VSCodeServer {
         const { id, viewType, title, showOptions, options, html } = params;
         
         // Dispose existing panel with same ID if it exists
-        if (this.webviewPanels.has(id)) {
-            this.webviewPanels.get(id)?.dispose();
+        const existingState = this.webviewPanels.get(id);
+        if (existingState) {
+            existingState.dispose();
         }
 
         // Create the webview panel
@@ -974,21 +1024,42 @@ export class VSCodeServer {
             panel.webview.html = html;
         }
 
+        // Track disposables for this panel
+        const disposables: vscode.Disposable[] = [];
+
         // Handle panel disposal
-        panel.onDidDispose(() => {
-            this.webviewPanels.delete(id);
-        });
+        disposables.push(panel.onDidDispose(() => {
+            // Dispose all event listeners for this panel
+            const panelState = this.webviewPanels.get(id);
+            if (panelState) {
+                panelState.disposeListeners();
+                this.webviewPanels.delete(id);
+            }
+            
+            // Broadcast disposal event to Python clients
+            this.broadcastEvent('webview.onDidDispose', { id });
+        }));
+
+        // Handle view state changes (visibility, active state)
+        disposables.push(panel.onDidChangeViewState(e => {
+            this.broadcastEvent('webview.onDidChangeViewState', {
+                id,
+                visible: e.webviewPanel.visible,
+                active: e.webviewPanel.active
+            });
+        }));
 
         // Handle messages from webview
-        panel.webview.onDidReceiveMessage(message => {
+        disposables.push(panel.webview.onDidReceiveMessage(message => {
             this.broadcastEvent('webview.onDidReceiveMessage', {
                 id,
                 message
             });
-        });
+        }));
 
-        // Store the panel
-        this.webviewPanels.set(id, panel);
+        // Store the panel state
+        const panelState = new WebviewPanelState(panel, disposables);
+        this.webviewPanels.set(id, panelState);
 
         return { 
             success: true,
@@ -1001,10 +1072,11 @@ export class VSCodeServer {
     private updateWebviewPanel(params: any): any {
         const { id, html, title, iconPath } = params;
         
-        const panel = this.webviewPanels.get(id);
-        if (!panel) {
+        const panelState = this.webviewPanels.get(id);
+        if (!panelState) {
             throw new Error(`Webview panel not found: ${id}`);
         }
+        const panel = panelState.panel;
 
         if (html !== undefined) {
             panel.webview.html = html;
@@ -1028,13 +1100,13 @@ export class VSCodeServer {
     private disposeWebviewPanel(params: any): any {
         const { id } = params;
         
-        const panel = this.webviewPanels.get(id);
-        if (!panel) {
+        const panelState = this.webviewPanels.get(id);
+        if (!panelState) {
             throw new Error(`Webview panel not found: ${id}`);
         }
 
-        panel.dispose();
-        this.webviewPanels.delete(id);
+        // Dispose the panel (this will trigger onDidDispose which cleans up disposables)
+        panelState.panel.dispose();
 
         return { success: true };
     }
@@ -1042,12 +1114,12 @@ export class VSCodeServer {
     private postMessageToWebview(params: any): any {
         const { id, message } = params;
         
-        const panel = this.webviewPanels.get(id);
-        if (!panel) {
+        const panelState = this.webviewPanels.get(id);
+        if (!panelState) {
             throw new Error(`Webview panel not found: ${id}`);
         }
 
-        panel.webview.postMessage(message);
+        panelState.panel.webview.postMessage(message);
 
         return { success: true };
     }
@@ -1055,14 +1127,14 @@ export class VSCodeServer {
     private asWebviewUri(params: any): any {
         const { id, uri } = params;
         
-        const panel = this.webviewPanels.get(id);
-        if (!panel) {
+        const panelState = this.webviewPanels.get(id);
+        if (!panelState) {
             throw new Error(`Webview panel not found: ${id}`);
         }
 
         // Parse the local URI and convert it to a webview URI
         const localUri = vscode.Uri.parse(uri);
-        const webviewUri = panel.webview.asWebviewUri(localUri);
+        const webviewUri = panelState.panel.webview.asWebviewUri(localUri);
 
         return { 
             webviewUri: webviewUri.toString()
@@ -1540,44 +1612,50 @@ export class VSCodeServer {
             ignoreDeleteEvents
         );
 
+        // Track disposables for this watcher
+        const disposables: vscode.Disposable[] = [];
+
         // Subscribe to watcher events and broadcast to Python clients
         if (!ignoreCreateEvents) {
-            watcher.onDidCreate(uri => {
+            disposables.push(watcher.onDidCreate(uri => {
                 this.broadcastEvent(`watcher.${watcherId}.onCreate`, {
                     uri: uri.toString()
                 });
-            });
+            }));
         }
 
         if (!ignoreChangeEvents) {
-            watcher.onDidChange(uri => {
+            disposables.push(watcher.onDidChange(uri => {
                 this.broadcastEvent(`watcher.${watcherId}.onChange`, {
                     uri: uri.toString()
                 });
-            });
+            }));
         }
 
         if (!ignoreDeleteEvents) {
-            watcher.onDidDelete(uri => {
+            disposables.push(watcher.onDidDelete(uri => {
                 this.broadcastEvent(`watcher.${watcherId}.onDelete`, {
                     uri: uri.toString()
                 });
-            });
+            }));
         }
 
-        this.fileWatchers.set(watcherId, watcher);
+        // Store the watcher state
+        const watcherState = new FileSystemWatcherState(watcher, disposables);
+        this.fileWatchers.set(watcherId, watcherState);
         return { watcherId };
     }
 
     private disposeFileSystemWatcher(params: any): any {
         const { watcherId } = params;
-        const watcher = this.fileWatchers.get(watcherId);
+        const watcherState = this.fileWatchers.get(watcherId);
 
-        if (!watcher) {
+        if (!watcherState) {
             throw new Error(`File watcher not found: ${watcherId}`);
         }
 
-        watcher.dispose();
+        // Dispose the watcher and all its event listeners
+        watcherState.dispose();
         this.fileWatchers.delete(watcherId);
         return { success: true };
     }
