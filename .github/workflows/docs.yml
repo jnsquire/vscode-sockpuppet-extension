@@ -1,0 +1,61 @@
+name: Build and Deploy Documentation
+
+on:
+  # Trigger on push to main branch when Python code changes
+  push:
+    branches:
+      - main
+    paths:
+      - 'python/**'
+      - '.github/workflows/docs.yml'
+  
+  # Allow manual trigger from GitHub UI
+  workflow_dispatch:
+
+# Required for pushing to gh-pages branch
+permissions:
+  contents: write
+
+jobs:
+  deploy-docs:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # Full history needed for mkdocs gh-deploy
+      
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+      
+      - name: Install dependencies
+        run: |
+          cd python
+          pip install --upgrade pip
+          pip install -e ".[docs]"
+      
+      - name: Configure git for deployment
+        run: |
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+      
+      - name: Build and deploy to GitHub Pages
+        run: |
+          cd python
+          mkdocs gh-deploy --force --clean --verbose
+        env:
+          # This ensures the gh-pages branch is pushed with proper permissions
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      
+      - name: Summary
+        run: |
+          echo "### Documentation Deployed! :rocket:" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "Your documentation has been successfully built and deployed." >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**View your docs at:**" >> $GITHUB_STEP_SUMMARY
+          echo "https://${{ github.repository_owner }}.github.io/${{ github.event.repository.name }}/" >> $GITHUB_STEP_SUMMARY
