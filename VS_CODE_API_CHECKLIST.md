@@ -198,7 +198,7 @@ This document tracks the implementation status of VS Code APIs that can be expos
 
 #### Environment Methods
 - ✅ `env.openExternal()` - Open external URI
-- ❌ `env.asExternalUri()` - Convert to external URI
+- ✅ `env.asExternalUri()` - Convert to external URI
 
 ## Language Features (Provider-based)
 

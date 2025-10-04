@@ -744,6 +744,10 @@ export class VSCodeServer {
             case 'openExternal':
                 return await vscode.env.openExternal(vscode.Uri.parse(params.uri));
 
+            case 'asExternalUri':
+                const externalUri = await vscode.env.asExternalUri(vscode.Uri.parse(params.uri));
+                return externalUri.toString();
+
             case 'appName':
                 return vscode.env.appName;
 
@@ -1233,10 +1237,9 @@ export class VSCodeServer {
         const config = vscode.workspace.getConfiguration(section, scopeUri);
         
         // Get the value for the section
-        // If section is empty, we return the whole configuration
+        // If section is undefined, we return the whole configuration object
         // If section has a key, we get that specific value
-        const value = config.get('');
-        return value;
+        return section ? config.get(section) : config;
     }
 
     private hasConfiguration(section: string, scope: string | undefined): boolean {

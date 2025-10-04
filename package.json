@@ -3,7 +3,7 @@
   "displayName": "VSCode Sockpuppet",
   "description": "Control VS Code programmatically from Python scripts",
   "version": "0.8.0",
-  "publisher": "joel0430",
+  "publisher": "JoelSquire",
   "author": {
     "name": "Joel Squire"
   },
