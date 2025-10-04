@@ -20,17 +20,17 @@ This document tracks the implementation status of VS Code APIs that can be expos
 - ✅ `window.showInputBox()` - Show input boxes
 - ✅ `window.showOpenDialog()` - Show file open dialogs
 - ✅ `window.showSaveDialog()` - Show file save dialogs
-- ❌ `window.showWorkspaceFolderPick()` - Pick workspace folders
+- ✅ `window.showWorkspaceFolderPick()` - Pick workspace folders
 
 #### Editors
 - ⚠️ `window.activeTextEditor` - Currently active text editor (read-only support)
-- ❌ `window.visibleTextEditors` - All visible editors
-- ❌ `window.showTextDocument()` - Show document in editor
-- ❌ `window.createTextEditorDecorationType()` - Create editor decorations
+- ✅ `window.visibleTextEditors` - All visible editors
+- ✅ `window.showTextDocument()` - Show document in editor
+- ✅ `window.createTextEditorDecorationType()` - Create editor decorations
 - ✅ TextEditor operations:
   - ✅ `edit()` - Apply text edits with EditBuilder
   - ✅ `insertSnippet()` - Insert snippets with placeholders
-  - ❌ `setDecorations()` - Apply decorations
+  - ✅ `setDecorations()` - Apply decorations
   - ✅ `revealRange()` - Scroll to range with reveal types
   - ❌ `show()` - Show editor
   - ❌ `hide()` - Hide editor
@@ -77,7 +77,7 @@ This document tracks the implementation status of VS Code APIs that can be expos
   - ❌ `dispose()` - Dispose webview
 
 #### Window State & Events
-- ❌ `window.state` - Window state (focused, active)
+- ✅ `window.state` - Window state (focused, active)
 - ✅ `window.onDidChangeActiveTextEditor` - Active editor changed
 - ✅ `window.onDidChangeVisibleTextEditors` - Visible editors changed
 - ✅ `window.onDidChangeTextEditorSelection` - Selection changed
@@ -97,14 +97,13 @@ This document tracks the implementation status of VS Code APIs that can be expos
 - ✅ `workspace.getWorkspaceFolder()` - Get folder for URI
 - ✅ `workspace.asRelativePath()` - Convert to relative path
 - ✅ `workspace.findFiles()` - Find files by glob pattern
-- ❌ `workspace.findTextInFiles()` - Search text in files (N/A - not in VS Code API)
 - ❌ `workspace.save()` - Save single file
 - ✅ `workspace.saveAll()` - Save all files
 
 #### Text Documents
 - ✅ `workspace.textDocuments` - All open text documents
 - ✅ `workspace.openTextDocument()` - Open/create documents
-- ❌ `workspace.applyEdit()` - Apply workspace edits
+- ✅ `workspace.applyEdit()` - Apply workspace edits
 - ✅ `workspace.createFileSystemWatcher()` - Watch file changes
 
 #### Configuration
@@ -156,8 +155,8 @@ This document tracks the implementation status of VS Code APIs that can be expos
 - ✅ `isClosed` - Is closed
 - ✅ `lineCount` - Number of lines
 - ✅ `eol` - End of line sequence
-- ❌ `isUntitled` - Is untitled
-- ❌ `encoding` - File encoding
+- ✅ `isUntitled` - Is untitled
+- ✅ `encoding` - File encoding
 
 #### TextDocument Methods
 - ✅ `save()` - Save document
@@ -456,10 +455,7 @@ These require provider registration and typically need package.json contribution
 ### Major Gaps to Fill ❌
 - File decorations (requires complex provider pattern)
 - Advanced webview operations (better message handling, webview view providers)
-- Editor decorations (setDecorations, createTextEditorDecorationType)
-- Additional editor operations (show, hide, visible editors, showTextDocument)
-- Workspace edit operations (applyEdit for batch modifications)
-- Workspace folder picker (showWorkspaceFolderPick)
+- Additional editor operations (show, hide)
 - onWill* events (requires bidirectional async communication - can modify/cancel)
 
 ## Next Steps

@@ -21,6 +21,7 @@ export class VSCodeServer {
     private progressTokens: Map<string, vscode.CancellationTokenSource> = new Map();
     private terminals: Map<string, vscode.Terminal> = new Map();
     private fileWatchers: Map<string, vscode.FileSystemWatcher> = new Map();
+    private decorationTypes: Map<string, vscode.TextEditorDecorationType> = new Map();
 
     constructor(private context: vscode.ExtensionContext) {
         // Create platform-specific pipe path
@@ -203,10 +204,16 @@ export class VSCodeServer {
             case 'showSaveDialog':
                 return await this.showSaveDialog(params);
 
+            case 'showWorkspaceFolderPick':
+                return await this.showWorkspaceFolderPick(params);
+
             case 'showTextDocument':
                 const doc = await vscode.workspace.openTextDocument(params.uri);
                 await vscode.window.showTextDocument(doc, params.options);
                 return { success: true };
+
+            case 'visibleTextEditors':
+                return this.getVisibleTextEditors();
 
             case 'createOutputChannel':
                 const channel = vscode.window.createOutputChannel(params.name);
@@ -288,6 +295,16 @@ export class VSCodeServer {
             case 'withProgress':
                 return await this.withProgress(params);
 
+            case 'state':
+                // Return current window state (focused) and include `active`
+                // when the property is available on the runtime WindowState.
+                const state: any = { focused: vscode.window.state.focused };
+                if ('active' in vscode.window.state) {
+                    // Property may exist on some platforms/VS Code versions
+                    state.active = (vscode.window.state as any).active;
+                }
+                return state;
+
             case 'tabGroups.all':
                 return this.getTabGroups();
 
@@ -299,6 +316,15 @@ export class VSCodeServer {
 
             case 'tabGroups.closeGroup':
                 return await this.closeTabGroup(params);
+                
+            case 'createTextEditorDecorationType':
+                return this.createTextEditorDecorationType(params);
+
+            case 'activeTextEditor.setDecorations':
+                return this.handleSetDecorations(params);
+
+            case 'disposeTextEditorDecorationType':
+                return this.disposeTextEditorDecorationType(params);
 
             default:
                 throw new Error(`Unknown window method: window.${method}`);
@@ -498,6 +524,62 @@ export class VSCodeServer {
         return { viewColumn: vscode.window.activeTextEditor.viewColumn || -1 };
     }
 
+    private getVisibleTextEditors(): any[] {
+        return vscode.window.visibleTextEditors.map(editor => ({
+            uri: editor.document.uri.toString(),
+            viewColumn: editor.viewColumn || -1,
+            selection: {
+                start: { line: editor.selection.start.line, character: editor.selection.start.character },
+                end: { line: editor.selection.end.line, character: editor.selection.end.character }
+            }
+        }));
+    }
+
+    private createTextEditorDecorationType(params: any): any {
+        const id = `decoration-${Date.now()}-${Math.random().toString(36).substr(2,9)}`;
+        const options: vscode.DecorationRenderOptions = params.options || {};
+        const decorationType = vscode.window.createTextEditorDecorationType(options);
+        this.decorationTypes.set(id, decorationType);
+        return { id };
+    }
+
+    private disposeTextEditorDecorationType(params: any): any {
+        const { decorationId } = params;
+        if (!this.decorationTypes.has(decorationId)) {
+            throw new Error(`Decoration id not found: ${decorationId}`);
+        }
+
+        const decorationType = this.decorationTypes.get(decorationId)!;
+        try {
+            decorationType.dispose();
+        } catch (err) {
+            // Disposal should not throw, but if it does, surface a helpful error
+            throw new Error(`Failed to dispose decoration ${decorationId}: ${err instanceof Error ? err.message : String(err)}`);
+        }
+
+        this.decorationTypes.delete(decorationId);
+        return { success: true };
+    }
+
+    private handleSetDecorations(params: any): any {
+        const { decorationId, ranges } = params;
+        if (!this.decorationTypes.has(decorationId)) {
+            throw new Error(`Decoration id not found: ${decorationId}`);
+        }
+        const decorationType = this.decorationTypes.get(decorationId)!;
+        // Convert ranges to vscode.Range
+        const vscodeRanges = ranges.map((r: any) => {
+            return new vscode.Range(r.start.line, r.start.character, r.end.line, r.end.character);
+        });
+
+        if (!vscode.window.activeTextEditor) {
+            throw new Error('No active text editor');
+        }
+
+        vscode.window.activeTextEditor.setDecorations(decorationType, vscodeRanges);
+        return { success: true };
+    }
+
     private async handleWorkspaceRequest(method: string, params: any): Promise<any> {
         switch (method) {
             case 'openTextDocument':
@@ -558,6 +640,9 @@ export class VSCodeServer {
 
             case 'asRelativePath':
                 return this.asRelativePath(params);
+
+            case 'applyEdit':
+                return await this.applyWorkspaceEdit(params);
 
             default:
                 throw new Error(`Unknown workspace method: workspace.${method}`);
@@ -825,6 +910,18 @@ export class VSCodeServer {
         return null;
     }
 
+    private async showWorkspaceFolderPick(params: any): Promise<any> {
+        const options = params.options || {};
+
+        // VS Code accepts an options object for workspace folder pick with
+        // properties like placeHolder and ignoreFocusOut.
+        const folder = await vscode.window.showWorkspaceFolderPick(options);
+        if (!folder) {
+            return null;
+        }
+        return { uri: folder.uri.toString(), name: folder.name, index: folder.index };
+    }
+
     private createWebviewPanel(params: any): any {
         const { id, viewType, title, showOptions, options, html } = params;
         
@@ -955,7 +1052,8 @@ export class VSCodeServer {
             isDirty: doc.isDirty,
             isClosed: doc.isClosed,
             eol: doc.eol === vscode.EndOfLine.CRLF ? '\r\n' : '\n',
-            lineCount: doc.lineCount
+            lineCount: doc.lineCount,
+            encoding: doc.encoding
         };
     }
 
@@ -1513,6 +1611,68 @@ export class VSCodeServer {
         );
 
         return { relativePath };
+    }
+
+    private async applyWorkspaceEdit(params: any): Promise<any> {
+        const edit = new vscode.WorkspaceEdit();
+
+        // Process document changes (text edits)
+        if (params.documentChanges && Array.isArray(params.documentChanges)) {
+            for (const docChange of params.documentChanges) {
+                const uri = vscode.Uri.parse(docChange.uri);
+                const textEdits = docChange.edits.map((e: any) => {
+                    const range = new vscode.Range(
+                        e.range.start.line,
+                        e.range.start.character,
+                        e.range.end.line,
+                        e.range.end.character
+                    );
+                    return new vscode.TextEdit(range, e.newText);
+                });
+                edit.set(uri, textEdits);
+            }
+        }
+
+        // Process file creates
+        if (params.createFiles && Array.isArray(params.createFiles)) {
+            for (const file of params.createFiles) {
+                const uri = vscode.Uri.parse(file.uri);
+                const options = file.options || {};
+                edit.createFile(uri, {
+                    overwrite: options.overwrite,
+                    ignoreIfExists: options.ignoreIfExists
+                });
+            }
+        }
+
+        // Process file deletes
+        if (params.deleteFiles && Array.isArray(params.deleteFiles)) {
+            for (const file of params.deleteFiles) {
+                const uri = vscode.Uri.parse(file.uri);
+                const options = file.options || {};
+                edit.deleteFile(uri, {
+                    recursive: options.recursive,
+                    ignoreIfNotExists: options.ignoreIfNotExists
+                });
+            }
+        }
+
+        // Process file renames
+        if (params.renameFiles && Array.isArray(params.renameFiles)) {
+            for (const file of params.renameFiles) {
+                const oldUri = vscode.Uri.parse(file.oldUri);
+                const newUri = vscode.Uri.parse(file.newUri);
+                const options = file.options || {};
+                edit.renameFile(oldUri, newUri, {
+                    overwrite: options.overwrite,
+                    ignoreIfExists: options.ignoreIfExists
+                });
+            }
+        }
+
+        // Apply the edit
+        const success = await vscode.workspace.applyEdit(edit);
+        return { success };
     }
 
     // Tab Groups Handlers

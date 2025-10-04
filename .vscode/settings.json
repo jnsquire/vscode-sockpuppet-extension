@@ -9,5 +9,22 @@
         "dist": true // set this to false to include "dist" folder in search results
     },
     // Turn off tsc task auto detection since we have the necessary tasks as npm scripts
-    "typescript.tsc.autoDetect": "off"
+    "typescript.tsc.autoDetect": "off",
+    
+    // Python settings - match ruff configuration
+    "python.analysis.typeCheckingMode": "basic",
+    "python.formatting.provider": "none",
+    "[python]": {
+        "editor.formatOnSave": true,
+        "editor.defaultFormatter": "charliermarsh.ruff",
+        "editor.codeActionsOnSave": {
+            "source.fixAll": "explicit",
+            "source.organizeImports": "explicit"
+        },
+        "editor.rulers": [99]
+    },
+    // Pylance settings
+    "python.analysis.diagnosticSeverityOverrides": {
+        "reportUndefinedVariable": "none" // Disable for TYPE_CHECKING imports
+    }
 }
