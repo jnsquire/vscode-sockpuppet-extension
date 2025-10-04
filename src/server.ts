@@ -3,11 +3,8 @@ import * as net from 'net';
 import * as os from 'os';
 import * as path from 'path';
 import * as fs from 'fs';
+import * as crypto from 'crypto';
 
-interface ClientSubscriptions {
-    socket: net.Socket;
-    subscriptions: Set<string>;
-}
 
 export class VSCodeServer {
     private server: net.Server | undefined;
@@ -24,16 +21,37 @@ export class VSCodeServer {
     private decorationTypes: Map<string, vscode.TextEditorDecorationType> = new Map();
 
     constructor(private context: vscode.ExtensionContext) {
-        // Create platform-specific pipe path
-        if (os.platform() === 'win32') {
-            this.pipePath = '\\\\.\\pipe\\vscode-sockpuppet';
-        } else {
-            const tmpDir = os.tmpdir();
-            this.pipePath = path.join(tmpDir, 'vscode-sockpuppet.sock');
-        }
+        // Create unique pipe path for this VS Code instance
+        this.pipePath = this.generateUniquePipePath();
+        
+        // Store pipe path in environment variable for child processes
+        process.env.VSCODE_SOCKPUPPET_PIPE = this.pipePath;
         
         // Set up event listeners
         this.setupEventListeners();
+    }
+
+    private generateUniquePipePath(): string {
+        // Create a unique identifier based on workspace and process
+        let uniqueId: string;
+        
+        // Try to use workspace folder for consistency across terminal sessions
+        const workspaceFolders = vscode.workspace.workspaceFolders;
+        if (workspaceFolders && workspaceFolders.length > 0) {
+            // Use hash of first workspace folder path
+            const workspacePath = workspaceFolders[0].uri.fsPath;
+            uniqueId = crypto.createHash('md5').update(workspacePath).digest('hex').substring(0, 8);
+        } else {
+            // No workspace, use process ID (less consistent but works)
+            uniqueId = process.pid.toString();
+        }
+        
+        if (os.platform() === 'win32') {
+            return `\\\\.\\pipe\\vscode-sockpuppet-${uniqueId}`;
+        } else {
+            const tmpDir = os.tmpdir();
+            return path.join(tmpDir, `vscode-sockpuppet-${uniqueId}.sock`);
+        }
     }
 
     start(): void {
@@ -47,7 +65,7 @@ export class VSCodeServer {
         }
 
         this.server = net.createServer((socket: net.Socket) => {
-            console.log('Python client connected');
+            console.log('Python client connected to', this.pipePath);
             this.clients.add(socket);
             this.clientSubscriptions.set(socket, new Set());
             
@@ -122,6 +140,9 @@ export class VSCodeServer {
                     console.error('Failed to remove socket file:', err);
                 }
             }
+            
+            // Clear environment variable
+            delete process.env.VSCODE_SOCKPUPPET_PIPE;
         }
     }
 

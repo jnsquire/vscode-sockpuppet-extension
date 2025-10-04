@@ -5,15 +5,43 @@ import { VSCodeServer } from './server';
 import { SockpuppetAPI } from './api';
 
 let server: VSCodeServer | undefined;
+let statusBarItem: vscode.StatusBarItem | undefined;
+let extensionContext: vscode.ExtensionContext | undefined;
 
 // This method is called when your extension is activated
 // Your extension is activated the very first time the command is executed
 export function activate(context: vscode.ExtensionContext): SockpuppetAPI {
 	console.log('VSCode Sockpuppet extension is now active!');
 
+	// Store context for deactivate function
+	extensionContext = context;
+
 	// Start the server for Python communication
 	server = new VSCodeServer(context);
 	server.start();
+
+	// Set environment variable for terminals
+	const pipePath = server.getPipePath();
+	const envCollection = context.environmentVariableCollection;
+	envCollection.replace('VSCODE_SOCKPUPPET_PIPE', pipePath);
+	envCollection.description = 'VSCode Sockpuppet IPC configuration';
+
+	// Create status bar item to show pipe path
+	statusBarItem = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Right, 100);
+	statusBarItem.text = `$(plug) Sockpuppet`;
+	statusBarItem.tooltip = `Sockpuppet IPC: ${pipePath}\nClick to copy pipe path`;
+	statusBarItem.command = 'vscode-sockpuppet.copyPipePath';
+	statusBarItem.show();
+	context.subscriptions.push(statusBarItem);
+
+	// Register command to copy pipe path to clipboard
+	const copyPipePathCommand = vscode.commands.registerCommand('vscode-sockpuppet.copyPipePath', async () => {
+		if (server) {
+			await vscode.env.clipboard.writeText(pipePath);
+			vscode.window.showInformationMessage(`Sockpuppet pipe path copied: ${pipePath}`);
+		}
+	});
+	context.subscriptions.push(copyPipePathCommand);
 
 	// Register a command to show the server status
 	const statusCommand = vscode.commands.registerCommand('vscode-sockpuppet.showStatus', () => {
@@ -26,9 +54,9 @@ export function activate(context: vscode.ExtensionContext): SockpuppetAPI {
 
 	context.subscriptions.push(statusCommand);
 
-	// Show activation message with pipe path
-	const pipePath = server.getPipePath();
-	vscode.window.showInformationMessage(`VSCode Sockpuppet is ready! Pipe: ${pipePath}`);
+	// Log pipe path for debugging
+	console.log(`VSCode Sockpuppet IPC pipe: ${pipePath}`);
+	console.log(`Environment variable VSCODE_SOCKPUPPET_PIPE set to: ${pipePath}`);
 
 	// Create and return the external API
 	const api: SockpuppetAPI = {
@@ -78,4 +106,6 @@ export function deactivate() {
 	if (server) {
 		server.stop();
 	}
+	statusBarItem?.dispose();
+	extensionContext?.environmentVariableCollection.clear();
 }
