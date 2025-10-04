@@ -1,11 +1,11 @@
 # VSCode Sockpuppet
 
-[![Documentation](https://img.shields.io/badge/docs-GitHub%20Pages-blue)](https://jnsquire.github.io/vscode-sockpuppet-extension/)
+[![Documentation](https://img.shields.io/badge/docs-GitHub%20Pages-blue)](https://jnsquire.github.io/vscode-sockpuppet-python/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
 VS Code extension with integrated Python package that allows you to programmatically control VS Code through Python code. Perfect for automation, testing, or building custom workflows.
 
-📚 **[Full Documentation](https://jnsquire.github.io/vscode-sockpuppet-extension/)** | 🐍 **[Python API Reference](https://jnsquire.github.io/vscode-sockpuppet-extension/api/)** | 🚀 **[Quick Start](https://jnsquire.github.io/vscode-sockpuppet-extension/getting-started/quickstart/)**
+📚 **[Full Documentation](https://jnsquire.github.io/vscode-sockpuppet-python/)** | 🐍 **[Python API Reference](https://jnsquire.github.io/vscode-sockpuppet-python/api/)** | 🚀 **[Quick Start](https://jnsquire.github.io/vscode-sockpuppet-python/getting-started/quickstart/)**
 
 ## Features
 
@@ -39,7 +39,7 @@ with VSCodeClient() as vscode:
         print(f"Workspace: {folder['name']}")
 ```
 
-**[See more examples in the documentation →](https://jnsquire.github.io/vscode-sockpuppet-extension/getting-started/examples/)**
+**[See more examples in the documentation →](https://jnsquire.github.io/vscode-sockpuppet-python/getting-started/examples/)**
 
 ## Overview
 
@@ -268,14 +268,14 @@ See [Event Subscriptions](docs/api/events.md) for complete event documentation.
 
 ## Documentation
 
-📚 **[Complete Documentation](https://jnsquire.github.io/vscode-sockpuppet-extension/)** - Comprehensive guides and API reference
+📚 **[Complete Documentation](https://jnsquire.github.io/vscode-sockpuppet-python/)** - Comprehensive guides and API reference
 
 ### Quick Links
 
-- 🚀 **[Quick Start Guide](https://jnsquire.github.io/vscode-sockpuppet-extension/getting-started/quickstart/)** - Get started in 5 minutes
-- 📖 **[API Reference](https://jnsquire.github.io/vscode-sockpuppet-extension/api/)** - Complete API documentation
-- 💡 **[Examples](https://jnsquire.github.io/vscode-sockpuppet-extension/getting-started/examples/)** - Practical code examples
-- 🔧 **[Development Guide](https://jnsquire.github.io/vscode-sockpuppet-extension/guides/development/)** - Contributing and extending
+- 🚀 **[Quick Start Guide](https://jnsquire.github.io/vscode-sockpuppet-python/getting-started/quickstart/)** - Get started in 5 minutes
+- 📖 **[API Reference](https://jnsquire.github.io/vscode-sockpuppet-python/api/)** - Complete API documentation
+- 💡 **[Examples](https://jnsquire.github.io/vscode-sockpuppet-python/getting-started/examples/)** - Practical code examples
+- 🔧 **[Development Guide](https://jnsquire.github.io/vscode-sockpuppet-python/guides/development/)** - Contributing and extending
 
 ### Documentation Source Files
 
@@ -286,12 +286,12 @@ The documentation is also available in the repository:
 
 ### API Highlights
 
-- **[Window](https://jnsquire.github.io/vscode-sockpuppet-extension/api/window/)** - Messages, dialogs, editors
-- **[Workspace](https://jnsquire.github.io/vscode-sockpuppet-extension/api/workspace/)** - Files, folders, configuration
-- **[Editor](https://jnsquire.github.io/vscode-sockpuppet-extension/api/editor/)** - Text editing and decorations
-- **[TextDocument](https://jnsquire.github.io/vscode-sockpuppet-extension/api/document/)** - Document manipulation
-- **[Events](https://jnsquire.github.io/vscode-sockpuppet-extension/api/events/)** - Real-time event handling
-- **[Webview](https://jnsquire.github.io/vscode-sockpuppet-extension/api/webview/)** - Custom HTML panels
+- **[Window](https://jnsquire.github.io/vscode-sockpuppet-python/api/window/)** - Messages, dialogs, editors
+- **[Workspace](https://jnsquire.github.io/vscode-sockpuppet-python/api/workspace/)** - Files, folders, configuration
+- **[Editor](https://jnsquire.github.io/vscode-sockpuppet-python/api/editor/)** - Text editing and decorations
+- **[TextDocument](https://jnsquire.github.io/vscode-sockpuppet-python/api/document/)** - Document manipulation
+- **[Events](https://jnsquire.github.io/vscode-sockpuppet-python/api/events/)** - Real-time event handling
+- **[Webview](https://jnsquire.github.io/vscode-sockpuppet-python/api/webview/)** - Custom HTML panels
 
 ## Extension Integration
 
