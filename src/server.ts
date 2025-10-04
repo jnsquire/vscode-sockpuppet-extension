@@ -168,6 +168,8 @@ export class VSCodeServer {
                 result = await this.handleLanguagesRequest(method.substring(10), params);
             } else if (method.startsWith('terminal.')) {
                 result = await this.handleTerminalRequest(method.substring(9), params);
+            } else if (method.startsWith('lm.')) {
+                result = await this.handleLanguageModelRequest(method.substring(3), params);
             } else {
                 throw new Error(`Unknown method: ${method}`);
             }
@@ -1751,6 +1753,75 @@ export class VSCodeServer {
         const group = groups[groupId];
         const success = await vscode.window.tabGroups.close(group, params.preserveFocus);
         return { success };
+    }
+
+    private async handleLanguageModelRequest(method: string, params: any): Promise<any> {
+        switch (method) {
+            case 'selectChatModels': {
+                const selector = params.selector || {};
+                const models = await vscode.lm.selectChatModels(selector);
+                
+                return models.map(model => ({
+                    id: model.id,
+                    name: model.name,
+                    vendor: model.vendor,
+                    family: model.family,
+                    version: model.version,
+                    maxInputTokens: model.maxInputTokens
+                }));
+            }
+
+            case 'sendRequest': {
+                const { modelId, messages, options = {} } = params;
+                
+                // Find the model
+                const models = await vscode.lm.selectChatModels({ id: modelId });
+                if (models.length === 0) {
+                    throw new Error(`Language model not found: ${modelId}`);
+                }
+                const model = models[0];
+
+                // Convert messages to LanguageModelChatMessage objects
+                const chatMessages = messages.map((msg: any) => {
+                    if (msg.role === 'user') {
+                        return vscode.LanguageModelChatMessage.User(msg.content);
+                    } else if (msg.role === 'assistant') {
+                        return vscode.LanguageModelChatMessage.Assistant(msg.content);
+                    } else {
+                        throw new Error(`Unknown message role: ${msg.role}`);
+                    }
+                });
+
+                // Send request and collect response
+                const response = await model.sendRequest(chatMessages, options);
+                const textParts: string[] = [];
+                
+                for await (const fragment of response.text) {
+                    textParts.push(fragment);
+                }
+
+                return {
+                    text: textParts.join(''),
+                    parts: textParts
+                };
+            }
+
+            case 'countTokens': {
+                const { modelId, text } = params;
+                
+                // Find the model
+                const models = await vscode.lm.selectChatModels({ id: modelId });
+                if (models.length === 0) {
+                    throw new Error(`Language model not found: ${modelId}`);
+                }
+                const model = models[0];
+
+                return await model.countTokens(text);
+            }
+
+            default:
+                throw new Error(`Unknown language model method: ${method}`);
+        }
     }
 
     private setupEventListeners(): void {

@@ -323,10 +323,15 @@ These require provider registration and typically need package.json contribution
 ## Language Models (Copilot/AI)
 
 ### Language Model API
-- ❌ `lm.selectChatModels()` - Select chat models
-- ❌ `lm.sendRequest()` - Send chat request
-- ❌ `lm.registerTool()` - Register LM tool
-- ❌ `lm.invokeTool()` - Invoke LM tool
+- ✅ `lm.selectChatModels()` - Select chat models
+- ✅ `lm.sendRequest()` - Send chat request (via LanguageModelChat)
+- ✅ `LanguageModelChat.sendRequest()` - Send chat requests to model
+- ✅ `LanguageModelChat.countTokens()` - Count tokens in text
+- ✅ Model properties: id, name, vendor, family, version, maxInputTokens
+- ✅ `LanguageModelChatMessage.user()` - Create user messages
+- ✅ `LanguageModelChatMessage.assistant()` - Create assistant messages
+- ❌ `lm.registerTool()` - Register LM tool (requires registration)
+- ❌ `lm.invokeTool()` - Invoke LM tool (requires registration)
 - 🚫 `lm.registerLanguageModelChatProvider()` - Register provider
 
 ## Chat Participants
@@ -444,10 +449,11 @@ These require provider registration and typically need package.json contribution
 - **TextEditor Operations (edit with EditBuilder, insert snippets, reveal ranges, multi-cursor selections, options, viewport queries)**
 - **Terminal Operations (create, sendText, show, hide, dispose - full object-oriented API)**
 - **File System Watchers (workspace.createFileSystemWatcher with glob patterns, event handlers for create/change/delete)**
-- **Environment Properties (workspace.env with app_name, language, machine_id, session_id, uri_scheme, shell, ui_kind, clipboard, open_external)**
+- **Environment Properties (workspace.env with app_name, language, machine_id, session_id, uri_scheme, shell, ui_kind, clipboard, open_external, as_external_uri)**
 - **Tab Management (window.tab_groups with get_all, get_active, close operations, event subscriptions)**
 - **Complete Event Coverage (all onDid* events for window, workspace, editor, terminal, and file operations)**
 - **Workspace Operations (findFiles, getWorkspaceFolder, asRelativePath - file search and path utilities)**
+- **Language Model API (lm.select_chat_models, model.send_request, model.count_tokens - direct Copilot/AI integration)**
 
 ### Needs Extension ⚠️
 - Webview operations (dispose, better message handling)
