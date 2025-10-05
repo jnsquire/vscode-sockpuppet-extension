@@ -1019,11 +1019,6 @@ export class VSCodeServer {
             }
         );
 
-        // Set initial HTML content
-        if (html) {
-            panel.webview.html = html;
-        }
-
         // Track disposables for this panel
         const disposables: vscode.Disposable[] = [];
 
@@ -1060,6 +1055,11 @@ export class VSCodeServer {
         // Store the panel state
         const panelState = new WebviewPanelState(panel, disposables);
         this.webviewPanels.set(id, panelState);
+
+        // This needs to be done after all the event listeners are registered
+        if (html) {
+            panel.webview.html = html;
+        }
 
         return { 
             success: true,

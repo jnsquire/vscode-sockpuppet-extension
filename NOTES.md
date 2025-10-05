@@ -2,6 +2,92 @@
 
 ## Recent Changes
 
+### Event-Driven Shutdown Pattern (2025-10-04) ✅ IMPLEMENTED
+**Problem**: Examples using polling with `time.sleep()` were inefficient and couldn't be interrupted cleanly with Ctrl-C on Windows.
+
+**Solution**: Replaced polling loops with event-driven pattern using `threading.Event`:
+
+**Key Changes**:
+1. Use `threading.Event` instead of boolean flag
+2. Signal handler calls `event.set()` to trigger immediate shutdown
+3. Main loop uses `event.wait(timeout=N)` instead of `time.sleep(N)`
+4. On Ctrl-C or webview disposal, event is set and loop exits immediately
+
+**Pattern**:
+```python
+class WebviewState:
+    def __init__(self):
+        self.stop_event = threading.Event()
+    
+    def stop(self):
+        self.stop_event.set()
+    
+    @property
+    def running(self):
+        return not self.stop_event.is_set()
+
+# Signal handler fires stop event
+def signal_handler(sig, frame):
+    state.stop()
+
+signal.signal(signal.SIGINT, signal_handler)
+
+# Event-driven wait (no polling!)
+while state.running:
+    if state.stop_event.wait(timeout=3.0):
+        break  # Event was set, exit immediately
+    # Timeout expired, do periodic work
+    update_counter()
+```
+
+**Benefits**:
+- ✅ No polling loops with multiple short sleeps
+- ✅ Immediate response to Ctrl-C (no delay)
+- ✅ Cleaner, more Pythonic code
+- ✅ Works reliably on Windows and Unix
+- ✅ Single wait point instead of checking flag in multiple places
+
+**Files Updated**:
+- ✅ `example_webview.py` - Periodic counter updates with event-driven wait
+- ✅ `example_webview_forms.py` - Indefinite wait until form closed
+- ✅ `example_webview_debug.py` - Debug logging with event-driven wait
+
+### Webview Events Not Firing Investigation (2025-10-04) 🔍 INVESTIGATING
+**Problem**: Button clicks in webview examples don't trigger Python event handlers.
+
+**Hypothesis**: 
+- CSP headers are now correct (added in previous fix)
+- Event subscription might not be working properly
+- Need to verify: event loop, event dispatching, webview message routing
+
+**Debug Steps**:
+1. Created `example_webview_debug.py` with extensive logging
+2. Need to verify extension is running and pipe connection works
+3. Check if `webview.onDidReceiveMessage` events are being broadcast from server
+4. Verify event dispatcher is routing messages to correct panel
+
+**Next Steps**:
+- Run debug example to see where the event flow breaks
+- Check server-side event broadcasting
+- Verify client event loop is receiving messages
+
+### Webview Script Execution Fix (2025-10-04) ✅ RESOLVED
+**Problem**: Scripts embedded in webview examples were not executing because VS Code applies a restrictive Content Security Policy by default when none is specified.
+
+**Solution**: Added explicit CSP meta tags to all webview examples that allow inline scripts and styles:
+```html
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline';">
+```
+
+**Files Updated**:
+- `python/examples/example_webview.py` - Basic webview with counter
+- `python/examples/example_webview_forms.py` - Form submission example
+- `python/examples/example_webview_dispose.py` - Disposal event tracking
+- `python/examples/example_webview_visibility.py` - Visibility state tracking
+- `python/examples/example_webview_chart.py` - Already had CSP for external Chart.js
+
+**Note**: The `enable_scripts=True` option in `WebviewOptions` enables script execution capability, but VS Code still requires an explicit CSP header in the HTML to actually allow inline scripts. Without the CSP, the browser blocks all inline scripts for security.
+
 ### Asyncio Event Loop Refactor (2025-10-04) ✅ RESOLVED
 **Problem**: Windows named pipe threading deadlock when multiple threads accessed the pipe simultaneously.
 
